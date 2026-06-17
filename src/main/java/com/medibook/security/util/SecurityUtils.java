@@ -3,6 +3,7 @@ package com.medibook.security.util;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import com.medibook.common.exception.UnauthorizedException;
 import com.medibook.security.model.CustomUserPrincipal;
 
 public final class SecurityUtils {
@@ -14,17 +15,33 @@ public final class SecurityUtils {
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        CustomUserPrincipal principal = (CustomUserPrincipal) authentication.getPrincipal();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new UnauthorizedException("User not authenticated");
+        }
 
-        return principal.getUserId();
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof CustomUserPrincipal user) {
+            return user.getUserId();
+        }
+
+        throw new UnauthorizedException("Invalid authentication principal");
     }
 
     public static String getCurrentEmail() {
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        CustomUserPrincipal principal = (CustomUserPrincipal) authentication.getPrincipal();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new UnauthorizedException("User not authenticated");
+        }
 
-        return principal.getEmail();
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof CustomUserPrincipal user) {
+            return user.getEmail();
+        }
+
+        throw new UnauthorizedException("Invalid authentication principal");
     }
 }

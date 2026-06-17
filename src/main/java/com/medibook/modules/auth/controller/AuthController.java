@@ -6,14 +6,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.medibook.common.exception.UnauthorizedException;
 import com.medibook.common.response.ApiResponse;
+import com.medibook.modules.auth.dto.request.ChangePasswordRequest;
+import com.medibook.modules.auth.dto.request.ForgotPasswordRequest;
 import com.medibook.modules.auth.dto.request.LoginRequest;
 import com.medibook.modules.auth.dto.request.LogoutRequest;
 import com.medibook.modules.auth.dto.request.RefreshTokenRequest;
 import com.medibook.modules.auth.dto.request.RegisterRequest;
+import com.medibook.modules.auth.dto.request.ResetPasswordRequest;
+import com.medibook.modules.auth.dto.response.ForgotPasswordResponse;
 import com.medibook.modules.auth.dto.response.LoginResponse;
 import com.medibook.modules.auth.dto.response.RegisterResponse;
+import com.medibook.modules.auth.dto.response.ResetPasswordResponse;
 import com.medibook.modules.auth.service.AuthService;
+import com.medibook.security.util.SecurityUtils;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -64,5 +71,55 @@ public class AuthController {
         authService.logout(request.getRefreshToken());
 
         return ResponseEntity.ok(ApiResponse.success("Logout successful", null));
+    }
+
+    @PostMapping("/logout-all")
+    public ResponseEntity<ApiResponse<Void>> logoutAll() {
+
+        Long userId = SecurityUtils.getCurrentUserId();
+
+        if (userId == null) {
+            throw new UnauthorizedException("User not authenticated");
+        }
+
+        authService.logoutAllDevices(userId);
+
+        return ResponseEntity.ok(ApiResponse.success("Logout all devices successful", null));
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+
+        Long userId = SecurityUtils.getCurrentUserId();
+
+        authService.changePassword(userId, request);
+
+        return ResponseEntity.ok(ApiResponse.success("Password changed successfully", null));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<ForgotPasswordResponse>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+
+        ForgotPasswordResponse response = authService.forgotPassword(request);
+
+        return ResponseEntity.ok(ApiResponse.success("Request processed", response));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<ResetPasswordResponse>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+
+        ResetPasswordResponse response = authService.resetPassword(request);
+
+        return ResponseEntity.ok(ApiResponse.success("Password reset successfully", response));
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<ApiResponse<Void>> verifyEmail(@RequestParam String token) {
+
+        authService.verifyEmail(token);
+
+        return ResponseEntity.ok(ApiResponse.success("Account verified successfully", null));
     }
 }

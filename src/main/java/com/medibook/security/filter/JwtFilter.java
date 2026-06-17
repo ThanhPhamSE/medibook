@@ -31,7 +31,15 @@ public class JwtFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         // skip auth endpoint
-        if (request.getServletPath().startsWith("/api/v1/auth")) {
+        String path = request.getServletPath();
+
+        boolean isPublic = path.equals("/api/v1/auth/login") ||
+                path.equals("/api/v1/auth/register") ||
+                path.equals("/api/v1/auth/refresh-token") ||
+                path.equals("/api/v1/auth/forgot-password") ||
+                path.equals("/api/v1/auth/reset-password");
+
+        if (isPublic) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -82,6 +90,7 @@ public class JwtFilter extends OncePerRequestFilter {
                         "data": null
                     }
                     """);
+            return;
         }
     }
 }

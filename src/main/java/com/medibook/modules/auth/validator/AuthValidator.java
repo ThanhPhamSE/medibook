@@ -2,7 +2,9 @@ package com.medibook.modules.auth.validator;
 
 import org.springframework.stereotype.Component;
 
+import com.medibook.common.exception.BadRequestException;
 import com.medibook.common.exception.ConflictException;
+import com.medibook.modules.auth.dto.request.ChangePasswordRequest;
 import com.medibook.modules.auth.dto.request.RegisterRequest;
 import com.medibook.modules.user.repository.UserRepository;
 
@@ -22,6 +24,13 @@ public class AuthValidator {
 
         if (userRepository.existsByPhone(request.getPhone())) {
             throw new ConflictException("Phone already exists");
+        }
+    }
+
+    public void validateChangePassword(ChangePasswordRequest request) {
+
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new BadRequestException("Password confirmation does not match");
         }
     }
 }

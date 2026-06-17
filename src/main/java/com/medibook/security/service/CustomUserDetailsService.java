@@ -2,7 +2,6 @@ package com.medibook.security.service;
 
 import java.util.List;
 
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -24,14 +23,18 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+    public UserDetails loadUserByUsername(String email) {
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("Invalid credentials"));
 
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().getName()));
+        String roleName = user.getRole() != null ? user.getRole().getName() : "CUSTOMER";
 
-        return new CustomUserPrincipal(user.getId(), user.getEmail(), user.getPassword(), user.getIsActive(),
-                authorities);
+        return new CustomUserPrincipal(
+                user.getId(),
+                user.getEmail(),
+                user.getPassword(),
+                user.getIsActive(),
+                List.of(new SimpleGrantedAuthority("ROLE_" + roleName)));
     }
 }

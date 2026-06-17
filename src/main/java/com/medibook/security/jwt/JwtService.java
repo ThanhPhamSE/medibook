@@ -2,13 +2,14 @@ package com.medibook.security.jwt;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.medibook.common.exception.UnauthorizedException;
+
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,8 +33,20 @@ public class JwtService {
 
         return Jwts.builder().claims(claims).subject(email).issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtProperties.getAccessTokenExpiration()))
-                .signWith(getSignInKey(), Jwts.SIG.HS256)
-                .compact();
+                .signWith(getSignInKey(), Jwts.SIG.HS256).compact();
+    }
+
+    public String generateEmailVerificationToken(Long userId, String email) {
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
+        claims.put("type", "EMAIL_VERIFY");
+        claims.put("iss", "medibook");
+        claims.put("aud", "email-verification");
+
+        return Jwts.builder().claims(claims).subject(email).issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + 15 * 60 * 1000))
+                .signWith(getSignInKey(), Jwts.SIG.HS256).compact();
     }
 
     // extract user
@@ -83,8 +96,65 @@ public class JwtService {
     // signing key
     private SecretKey getSignInKey() {
 
-        byte[] keyBytes = Decoders.BASE64.decode(jwtProperties.getSecret());
+        return Keys.hmacShaKeyFor(
+                jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
+    }
 
-        return Keys.hmacShaKeyFor(keyBytes);
+    public String generatePasswordResetToken(Long userId, String email) {
+
+        Map<String, Object> claims = new HashMap<>();
+
+        claims.put("userId", userId);
+
+        claims.put("type", "PASSWORD_RESET");
+
+        return Jwts.builder().claims(claims).subject(email).issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + (15 * 60 * 1000)))
+                .signWith(getSignInKey(), Jwts.SIG.HS256).compact();
+    }
+
+    public Claims verifyPasswordResetToken(String token) {
+
+        Claims claims = extractAllClaims(token);
+
+        String type = claims.get("type", String.class);
+
+        if (!"PASSWORD_RESET".equals(type)) {
+
+            throw new UnauthorizedException("Invalid password reset token");
+        }
+
+        return claims;
+    }
+
+    public Long extractUserIdFromResetToken(String token) {
+
+        Claims claims = verifyPasswordResetToken(token);
+
+        return claims.get("userId", Long.class);
+    }
+
+    public Claims verifyEmailVerificationToken(String token) {
+
+        Claims claims = extractAllClaims(token);
+
+        String type = claims.get("type", String.class);
+
+        if (!"EMAIL_VERIFY".equals(type)) {
+            throw new UnauthorizedException("Invalid email verification token");
+        }
+
+        if (extractExpiration(token).before(new Date())) {
+            throw new UnauthorizedException("Email verification token expired");
+        }
+
+        return claims;
+    }
+
+    public Long extractUserIdFromEmailVerificationToken(String token) {
+
+        Claims claims = verifyEmailVerificationToken(token);
+
+        return claims.get("userId", Long.class);
     }
 }

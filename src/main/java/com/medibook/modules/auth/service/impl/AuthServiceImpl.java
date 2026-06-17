@@ -1,20 +1,29 @@
 package com.medibook.modules.auth.service.impl;
 
 import com.medibook.modules.auth.validator.AuthValidator;
+import com.medibook.modules.notification.service.EmailService;
 
 import java.time.ZoneId;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.medibook.common.exception.BadRequestException;
 import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.common.exception.UnauthorizedException;
+import com.medibook.modules.auth.dto.request.ChangePasswordRequest;
+import com.medibook.modules.auth.dto.request.ForgotPasswordRequest;
 import com.medibook.modules.auth.dto.request.LoginRequest;
 import com.medibook.modules.auth.dto.request.RegisterRequest;
+import com.medibook.modules.auth.dto.request.ResetPasswordRequest;
+import com.medibook.modules.auth.dto.response.ChangePasswordResponse;
+import com.medibook.modules.auth.dto.response.ForgotPasswordResponse;
 import com.medibook.modules.auth.dto.response.LoginResponse;
 import com.medibook.modules.auth.dto.response.RegisterResponse;
+import com.medibook.modules.auth.dto.response.ResetPasswordResponse;
 import com.medibook.modules.auth.mapper.AuthMapper;
 import com.medibook.modules.auth.service.AuthService;
 import com.medibook.modules.token.entity.RefreshToken;
@@ -42,6 +51,7 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenService refreshTokenService;
     private final JwtProperties jwtProperties;
     private final AuthMapper authMapper;
+    private final EmailService emailService;
 
     @Override
     @Transactional
@@ -56,7 +66,13 @@ public class AuthServiceImpl implements AuthService {
 
         User user = authMapper.toUser(request, encodedPassword, customRole);
 
+        user.setIsActive(false);
+
         userRepository.save(user);
+
+        String token = jwtService.generateEmailVerificationToken(user.getId(), user.getEmail());
+
+        emailService.sendVerificationEmail(user.getEmail(), token);
 
         return authMapper.toRegisterResponse(user);
     }
@@ -65,23 +81,36 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public LoginResponse login(LoginRequest request) {
 
-        authenticationManager
-                .authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+        try {
+
+            authenticationManager
+                    .authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+
+        } catch (AuthenticationException ex) {
+
+            throw new UnauthorizedException("Invalid email or password");
+        }
 
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
+                .orElseThrow(() -> new UnauthorizedException("User not found"));
+
+        if (!user.getIsActive()) {
+            throw new UnauthorizedException("Please verify your email before login");
+        }
 
         long issuedAt = System.currentTimeMillis();
 
-        String accessToken = jwtService.generateToken(user.getId(), user.getEmail(), user.getPassword());
+        String accessToken = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole().getName());
 
         String refreshToken = refreshTokenService.createRefreshToken(user, "WEB", "127.0.0.1");
 
-        long accessExp = issuedAt + jwtProperties.getAccessTokenExpiration();
-
-        long refreshExp = issuedAt + jwtProperties.getRefreshTokenExpiration();
-
-        return authMapper.toLoginResponse(user, accessToken, refreshToken, accessExp, refreshExp, issuedAt);
+        return authMapper.toLoginResponse(
+                user,
+                accessToken,
+                refreshToken,
+                issuedAt + jwtProperties.getAccessTokenExpiration(),
+                issuedAt + jwtProperties.getRefreshTokenExpiration(),
+                issuedAt);
     }
 
     @Override
@@ -94,7 +123,7 @@ public class AuthServiceImpl implements AuthService {
 
         long issueAt = System.currentTimeMillis();
 
-        String accessToken = jwtService.generateToken(user.getId(), user.getEmail(), user.getPassword());
+        String accessToken = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole().getName());
 
         long accessExp = issueAt + jwtProperties.getAccessTokenExpiration();
 
@@ -106,6 +135,97 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void logout(String refreshToken) {
+
         refreshTokenService.revokeToken(refreshToken);
+    }
+
+    @Override
+    @Transactional
+    public void logoutAllDevices(Long userId) {
+
+        refreshTokenService.revokeAllUserTokens(userId);
+    }
+
+    @Override
+    public ChangePasswordResponse changePassword(Long userId, ChangePasswordRequest request) {
+
+        authValidator.validateChangePassword(request);
+
+        User user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        boolean matched = passwordEncoder.matches(request.getCurrentPassword(), user.getPassword());
+
+        if (!matched) {
+            throw new UnauthorizedException("Current password is incorrect");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+
+        userRepository.save(user);
+
+        refreshTokenService.revokeAllUserTokens(userId);
+
+        return ChangePasswordResponse.builder().userId(user.getId()).email(user.getEmail())
+                .message("Password changed successfully. Please login again").build();
+    }
+
+    @Override
+    public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request) {
+
+        request.normalize();
+
+        userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
+
+            String token = jwtService.generatePasswordResetToken(user.getId(), user.getEmail());
+
+            emailService.sendResetPasswordEmail(user.getEmail(), token);
+        });
+
+        return ForgotPasswordResponse.builder().message("If an account exists, a password reset email been sent")
+                .build();
+
+    }
+
+    @Override
+    public ResetPasswordResponse resetPassword(ResetPasswordRequest request) {
+
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new BadRequestException("Password confirmation does not match");
+        }
+
+        Long userId = jwtService.extractUserIdFromResetToken(request.getResetToken());
+
+        User user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+
+        userRepository.save(user);
+
+        refreshTokenService.revokeAllUserTokens(userId);
+
+        return ResetPasswordResponse.builder().userId(user.getId()).email(user.getEmail())
+                .message("Password reset successful").build();
+
+    }
+
+    @Transactional
+    public void verifyEmail(String token) {
+
+        if (token == null || token.isBlank()) {
+            throw new BadRequestException("Token is required");
+        }
+
+        Long userId = jwtService.extractUserIdFromEmailVerificationToken(token);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (Boolean.TRUE.equals(user.getIsActive())) {
+            throw new BadRequestException("Account already verified");
+        }
+
+        user.setIsActive(true);
+
+        userRepository.save(user);
     }
 }

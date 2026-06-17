@@ -54,12 +54,15 @@ public class GlobalExceptionHandler {
     }
 
     // Handle all other exception
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<String>> handleGeneralException(Exception ex) {
+    // @ExceptionHandler(Exception.class)
+    // public ResponseEntity<ApiResponse<String>> handleGeneralException(Exception
+    // ex) {
 
-        ApiResponse<String> response = ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "Intenal server error");
+    // ApiResponse<String> response =
+    // ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(),
+    // "Intenal server error");
 
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    }
+    // return
+    // ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    // }
 }
