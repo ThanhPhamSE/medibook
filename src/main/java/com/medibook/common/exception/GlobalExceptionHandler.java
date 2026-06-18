@@ -3,6 +3,7 @@ package com.medibook.common.exception;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -65,4 +66,30 @@ public class GlobalExceptionHandler {
     // return
     // ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     // }
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<String>> handleGeneralException(Exception ex) {
+
+        // ex.printStackTrace();
+
+        return ResponseEntity.status(500)
+                .body(ApiResponse.error(
+                        500,
+                        ex.getClass().getName() + ": " + ex.getMessage()));
+    }
+
+    @ExceptionHandler(PropertyReferenceException.class)
+    public ResponseEntity<ApiResponse<String>> handlePropertyReference(PropertyReferenceException ex) {
+
+        ApiResponse<String> response = ApiResponse.error(HttpStatus.BAD_REQUEST.value(), ex.getMessage());
+
+        return ResponseEntity.badRequest().body(response);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<String>> handleIllegalArgument(IllegalArgumentException ex) {
+
+        ApiResponse<String> response = ApiResponse.error(HttpStatus.BAD_REQUEST.value(), ex.getMessage());
+
+        return ResponseEntity.badRequest().body(response);
+    }
 }

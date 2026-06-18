@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
 
+import com.medibook.common.exception.BadRequestException;
 import com.medibook.common.exception.UnauthorizedException;
 
 import java.nio.charset.StandardCharsets;
@@ -121,7 +122,7 @@ public class JwtService {
 
         if (!"PASSWORD_RESET".equals(type)) {
 
-            throw new UnauthorizedException("Invalid password reset token");
+            throw new BadRequestException("Invalid password reset token");
         }
 
         return claims;
