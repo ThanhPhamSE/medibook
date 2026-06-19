@@ -107,6 +107,13 @@ public class DoctorServiceImpl implements DoctorService {
 
     @Override
     @Transactional(readOnly = true)
+    public Doctor getDoctorEntityById(Long id) {
+        return doctorRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found"));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResponse<DoctorSummaryResponse> searchDoctors(
             DoctorSearchRequest request,
             Pageable pageable) {

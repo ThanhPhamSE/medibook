@@ -1,0 +1,37 @@
+package com.medibook.modules.schedule.mapper;
+
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+import com.medibook.modules.doctor.entity.DoctorTimeOff;
+import com.medibook.modules.doctor.entity.DoctorWorkingPattern;
+import com.medibook.modules.schedule.dto.request.TimeOffRequest;
+import com.medibook.modules.schedule.dto.request.WorkingPatternRequest;
+import com.medibook.modules.schedule.dto.response.TimeOffResponse;
+import com.medibook.modules.schedule.dto.response.WorkingPatternResponse;
+
+@Mapper(componentModel = "spring")
+public interface ScheduleMapper {
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "doctor", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    DoctorWorkingPattern toEntity(WorkingPatternRequest request);
+
+    @Mapping(target = "doctorId", source = "doctor.id")
+    WorkingPatternResponse toResponse(DoctorWorkingPattern entity);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "doctor", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    DoctorTimeOff toEntity(TimeOffRequest request);
+
+    @Mapping(target = "doctorId", source = "doctor.id")
+    @Mapping(target = "startDateTime", source = "startDatetime")
+    @Mapping(target = "endDateTime", source = "endDatetime")
+    TimeOffResponse toResponse(DoctorTimeOff entity);
+}

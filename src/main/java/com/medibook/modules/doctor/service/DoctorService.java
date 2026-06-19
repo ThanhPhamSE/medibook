@@ -9,6 +9,7 @@ import com.medibook.modules.doctor.dto.request.UpdateDoctorRequest;
 import com.medibook.modules.doctor.dto.request.UpgradeToDoctorRequest;
 import com.medibook.modules.doctor.dto.response.DoctorResponse;
 import com.medibook.modules.doctor.dto.response.DoctorSummaryResponse;
+import com.medibook.modules.doctor.entity.Doctor;
 
 public interface DoctorService {
 
@@ -23,4 +24,7 @@ public interface DoctorService {
     void deleteDoctor(Long id);
 
     DoctorResponse upgradeToDoctor(UpgradeToDoctorRequest request);
+
+    Doctor getDoctorEntityById(Long id);
+
 }
