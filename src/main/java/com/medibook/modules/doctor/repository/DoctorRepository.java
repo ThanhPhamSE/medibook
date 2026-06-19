@@ -8,14 +8,12 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.medibook.modules.doctor.entity.Doctor;
 
-public interface DoctorRepository extends JpaRepository<Doctor, Long>, JpaSpecificationExecutor<Doctor> {
+public interface DoctorRepository extends JpaRepository<Doctor, Long>,
+        JpaSpecificationExecutor<Doctor> {
 
     boolean existsByUserId(Long userId);
 
     Optional<Doctor> findByUserId(Long userId);
-
-    @EntityGraph(attributePaths = { "user", "specialty" })
-    Optional<Doctor> findByUserIdAndDeletedAtIsNull(Long userId);
 
     @EntityGraph(attributePaths = { "user", "specialty" })
     Optional<Doctor> findByIdAndDeletedAtIsNull(Long id);

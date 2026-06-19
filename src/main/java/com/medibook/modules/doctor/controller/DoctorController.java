@@ -63,13 +63,13 @@ public class DoctorController {
 
         doctorService.deleteDoctor(id);
 
-        return ResponseEntity.ok(ApiResponse.success(null));
+        return ResponseEntity.ok(ApiResponse.success("Deleted successful", null));
     }
 
     @PostMapping("/upgrade-to-doctor")
     public ResponseEntity<ApiResponse<DoctorResponse>> upgradeToDoctor(
             @Valid @RequestBody UpgradeToDoctorRequest request) {
 
-        return ResponseEntity.ok(ApiResponse.success(doctorService.upgradeToDoctor(request)));
+        return ResponseEntity.ok(ApiResponse.success("Updated successful", doctorService.upgradeToDoctor(request)));
     }
 }

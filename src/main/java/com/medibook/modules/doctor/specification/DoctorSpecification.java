@@ -5,27 +5,24 @@ import java.math.BigDecimal;
 import org.springframework.data.jpa.domain.Specification;
 
 import com.medibook.modules.doctor.entity.Doctor;
+import com.medibook.modules.specialty.entity.Specialty;
+import com.medibook.modules.user.entity.User;
 
+import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 
 public final class DoctorSpecification {
 
-    public DoctorSpecification() {
+    private DoctorSpecification() {
     }
 
-    public static Specification<Doctor> withRelations() {
-
+    public static Specification<Doctor> base() {
         return (root, query, cb) -> {
-            if (!Long.class.equals(query.getResultType()) && !long.class.equals(query.getResultType())) {
-
-                root.fetch("user", JoinType.LEFT);
-                root.fetch("specialty", JoinType.LEFT);
-
+            if (query.getResultType() != Long.class) {
                 query.distinct(true);
             }
             return cb.conjunction();
         };
-
     }
 
     public static Specification<Doctor> isNotDeleted() {
@@ -33,113 +30,67 @@ public final class DoctorSpecification {
     }
 
     public static Specification<Doctor> hasKeyword(String keyword) {
-
         return (root, query, cb) -> {
 
             if (keyword == null || keyword.isBlank()) {
                 return cb.conjunction();
             }
 
-            return cb.like(cb.lower(root.get("user").get("fullName")),
-                    "%" + keyword.trim().toLowerCase() + "%");
+            Join<Doctor, User> user = root.join("user", JoinType.LEFT);
+
+            return cb.like(
+                    cb.lower(user.get("fullName")),
+                    "%" + keyword.toLowerCase() + "%");
         };
     }
 
     public static Specification<Doctor> hasSpecialty(Long specialtyId) {
-
         return (root, query, cb) -> {
 
             if (specialtyId == null) {
                 return cb.conjunction();
             }
 
-            return cb.equal(root.get("specialty").get("id"), specialtyId);
+            Join<Doctor, Specialty> spec = root.join("specialty", JoinType.LEFT);
+
+            return cb.equal(spec.get("id"), specialtyId);
         };
     }
 
-    public static Specification<Doctor> hasMinExperience(Integer minExperience) {
-
-        return (root, query, cb) -> {
-
-            if (minExperience == null) {
-                return cb.conjunction();
-            }
-
-            return cb.greaterThanOrEqualTo(root.get("experienceYears"), minExperience);
-        };
+    public static Specification<Doctor> hasMinExperience(Integer min) {
+        return (root, query, cb) -> min == null ? cb.conjunction()
+                : cb.greaterThanOrEqualTo(root.get("experienceYears"), min);
     }
 
-    public static Specification<Doctor> hasMaxExperience(Integer maxExperience) {
-
-        return (root, query, cb) -> {
-
-            if (maxExperience == null) {
-                return cb.conjunction();
-            }
-
-            return cb.lessThanOrEqualTo(root.get("experienceYears"), maxExperience);
-        };
+    public static Specification<Doctor> hasMaxExperience(Integer max) {
+        return (root, query, cb) -> max == null ? cb.conjunction()
+                : cb.lessThanOrEqualTo(root.get("experienceYears"), max);
     }
 
-    public static Specification<Doctor> hasMinFee(BigDecimal minFee) {
-
-        return (root, query, cb) -> {
-
-            if (minFee == null) {
-                return cb.conjunction();
-            }
-
-            return cb.greaterThanOrEqualTo(root.get("consultationFee"), minFee);
-        };
+    public static Specification<Doctor> hasMinFee(BigDecimal min) {
+        return (root, query, cb) -> min == null ? cb.conjunction()
+                : cb.greaterThanOrEqualTo(root.get("consultationFee"), min);
     }
 
-    public static Specification<Doctor> hasMaxFee(BigDecimal maxFee) {
-        return (root, query, cb) -> {
-
-            if (maxFee == null) {
-                cb.conjunction();
-            }
-
-            return cb.lessThanOrEqualTo(root.get("consultationFee"), maxFee);
-        };
-
+    public static Specification<Doctor> hasMaxFee(BigDecimal max) {
+        return (root, query, cb) -> max == null ? cb.conjunction()
+                : cb.lessThanOrEqualTo(root.get("consultationFee"), max);
     }
 
-    public static Specification<Doctor> hasMinRating(BigDecimal minRating) {
-
-        return (root, query, cb) -> {
-
-            if (minRating == null) {
-                return cb.conjunction();
-            }
-
-            return cb.greaterThanOrEqualTo(root.get("averageRating"), minRating);
-        };
-
-    }
-
-    public static Specification<Doctor> hasMaxRating(Integer maxRaitng) {
-
-        return (root, query, cb) -> {
-
-            if (maxRaitng == null) {
-                return cb.conjunction();
-            }
-
-            return cb.lessThanOrEqualTo(root.get("averageRating"), maxRaitng);
-        };
-
+    public static Specification<Doctor> hasMinRating(BigDecimal min) {
+        return (root, query, cb) -> min == null ? cb.conjunction()
+                : cb.greaterThanOrEqualTo(root.get("averageRating"), min);
     }
 
     public static Specification<Doctor> hasActiveStatus(Boolean active) {
 
         return (root, query, cb) -> {
 
-            if (active == null) {
-                return cb.conjunction();
-            }
-            return cb.equal(root.get("user").get("isActive"), active);
-        };
+            boolean status = (active == null) ? true : active;
 
+            Join<Doctor, User> user = root.join("user", JoinType.LEFT);
+
+            return cb.equal(user.get("isActive"), status);
+        };
     }
 }

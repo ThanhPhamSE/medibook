@@ -1,8 +1,8 @@
 package com.medibook.modules.doctor.service.impl;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -107,11 +107,18 @@ public class DoctorServiceImpl implements DoctorService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<DoctorSummaryResponse> searchDoctors(DoctorSearchRequest request, Pageable pageable) {
+    public PageResponse<DoctorSummaryResponse> searchDoctors(
+            DoctorSearchRequest request,
+            Pageable pageable) {
 
         validator.validateSearchRequest(request);
 
-        Specification<Doctor> specification = DoctorSpecification.withRelations()
+        Boolean active = request.getActive();
+        if (active == null) {
+            active = true;
+        }
+
+        Specification<Doctor> spec = DoctorSpecification.base()
                 .and(DoctorSpecification.isNotDeleted())
                 .and(DoctorSpecification.hasKeyword(request.getKeyword()))
                 .and(DoctorSpecification.hasSpecialty(request.getSpecialtyId()))
@@ -120,9 +127,9 @@ public class DoctorServiceImpl implements DoctorService {
                 .and(DoctorSpecification.hasMinFee(request.getMinFee()))
                 .and(DoctorSpecification.hasMaxFee(request.getMaxFee()))
                 .and(DoctorSpecification.hasMinRating(request.getMinRating()))
-                .and(DoctorSpecification.hasActiveStatus(request.getActive()));
+                .and(DoctorSpecification.hasActiveStatus(active));
 
-        return PageMapper.from(doctorRepository.findAll(specification, pageable).map(doctorMapper::toSummaryResponse));
+        return PageMapper.from(doctorRepository.findAll(spec, pageable).map(doctorMapper::toSummaryResponse));
     }
 
     @Override
@@ -168,7 +175,7 @@ public class DoctorServiceImpl implements DoctorService {
             throw new BadRequestException("Doctor already disabled");
         }
 
-        doctor.getUser().setIsActive(false);
+        doctor.setDeletedAt(LocalDateTime.now());
     }
 
     private Doctor getDoctor(Long id) {
