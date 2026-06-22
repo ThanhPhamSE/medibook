@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,6 +29,7 @@ public class ScheduleController {
 
     private final ScheduleService scheduleService;
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/working-patterns")
     public ResponseEntity<ApiResponse<WorkingPatternResponse>> createWorkingPattern(
             @Valid @RequestBody WorkingPatternRequest request) {
@@ -36,6 +38,7 @@ public class ScheduleController {
                 .body(ApiResponse.success(scheduleService.createWorkingPattern(request)));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/working-patterns/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteWorkingPattern(@PathVariable Long id) {
 
@@ -44,6 +47,7 @@ public class ScheduleController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/time-offs")
     public ResponseEntity<ApiResponse<TimeOffResponse>> createTimeOff(@Valid @RequestBody TimeOffRequest request) {
 
@@ -51,6 +55,7 @@ public class ScheduleController {
                 .body(ApiResponse.success(scheduleService.createTimeOff(request)));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/time-offs/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteTimeOff(@PathVariable Long id) {
 
