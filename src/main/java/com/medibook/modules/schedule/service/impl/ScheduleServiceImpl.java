@@ -2,8 +2,9 @@ package com.medibook.modules.schedule.service.impl;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,10 +12,14 @@ import org.springframework.transaction.annotation.Transactional;
 import com.medibook.common.enums.DayOfWeekEnum;
 import com.medibook.common.exception.BadRequestException;
 import com.medibook.common.exception.ResourceNotFoundException;
+import com.medibook.modules.appointment.entity.Appointment;
+import com.medibook.modules.appointment.service.AppointmentService;
 import com.medibook.modules.doctor.entity.Doctor;
 import com.medibook.modules.doctor.entity.DoctorTimeOff;
 import com.medibook.modules.doctor.entity.DoctorWorkingPattern;
 import com.medibook.modules.doctor.service.DoctorService;
+import com.medibook.modules.schedule.business.ScheduleAvailabilityChecker;
+import com.medibook.modules.schedule.business.SlotGenerator;
 import com.medibook.modules.schedule.dto.request.SlotGenerateRequest;
 import com.medibook.modules.schedule.dto.request.TimeOffRequest;
 import com.medibook.modules.schedule.dto.request.WorkingPatternRequest;
@@ -42,6 +47,9 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final WorkingPatternValidator workingPatternValidator;
     private final TimeOffValidator timeOffValidator;
     private final ScheduleMapper scheduleMapper;
+    private final AppointmentService appointmentService;
+    private final ScheduleAvailabilityChecker availabilityChecker;
+    private final SlotGenerator slotGenerator;
 
     @Override
     public WorkingPatternResponse createWorkingPattern(WorkingPatternRequest request) {
@@ -71,6 +79,8 @@ public class ScheduleServiceImpl implements ScheduleService {
                 .orElseThrow(() -> new ResourceNotFoundException("Working pattern not found"));
 
         pattern.setDeletedAt(LocalDateTime.now());
+
+        doctorWorkingPatternRepository.save(pattern);
     }
 
     @Override
@@ -104,70 +114,48 @@ public class ScheduleServiceImpl implements ScheduleService {
                 .orElseThrow(() -> new ResourceNotFoundException("Time off not found"));
 
         doctorTimeOff.setDeletedAt(LocalDateTime.now());
+
+        doctorTimeOffRepository.save(doctorTimeOff);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<SlotResponse> generateSlots(SlotGenerateRequest request) {
 
         Doctor doctor = doctorService.getDoctorEntityById(request.getDoctorId());
 
-        DayOfWeekEnum dayOfWeekEnum = DayOfWeekEnum.valueOf(request.getDate().getDayOfWeek().name());
+        DayOfWeekEnum dayOfWeek = DayOfWeekEnum.valueOf(request.getDate().getDayOfWeek().name());
 
-        DoctorWorkingPattern doctorWorkingPattern = doctorWorkingPatternRepository
-                .findByDoctorIdAndDayOfWeekAndDeletedAtIsNull(doctor.getId(), dayOfWeekEnum).orElse(null);
+        DoctorWorkingPattern pattern = doctorWorkingPatternRepository
+                .findByDoctorIdAndDayOfWeekAndDeletedAtIsNull(doctor.getId(), dayOfWeek)
+                .orElseThrow(() -> new BadRequestException("No working pattern found"));
 
-        if (doctorWorkingPattern == null) {
+        if (pattern == null) {
             return List.of();
         }
 
         LocalDate date = request.getDate();
 
-        LocalDateTime workStart = LocalDateTime.of(date, doctorWorkingPattern.getStartTime());
+        LocalDateTime workStart = LocalDateTime.of(date, pattern.getStartTime());
 
-        LocalDateTime workEnd = LocalDateTime.of(date, doctorWorkingPattern.getEndTime());
+        LocalDateTime workEnd = LocalDateTime.of(date, pattern.getEndTime());
 
         List<DoctorTimeOff> timeOffs = doctorTimeOffRepository.findByDoctorAndDate(doctor.getId(), date.atStartOfDay(),
                 date.plusDays(1).atStartOfDay());
 
-        List<SlotResponse> slots = new ArrayList<>();
+        Set<LocalDateTime> bookedSlots = appointmentService.getBookedAppointmentsByDate(doctor.getId(), date).stream()
+                .map(Appointment::getStartDatetime).collect(Collectors.toSet());
 
-        LocalDateTime current = workStart;
+        List<LocalDateTime> slotStarts = slotGenerator.generate(workStart, workEnd, pattern.getSlotDuration(),
+                pattern.getBufferDuration() == null ? 0 : pattern.getBufferDuration());
 
-        int slotDuration = doctorWorkingPattern.getSlotDuration();
+        return slotStarts.stream().map(slotStart -> {
+            LocalDateTime slotEnd = slotStart.plusMinutes(pattern.getSlotDuration());
 
-        int bufferDuration = doctorWorkingPattern.getBufferDuration() == null ? 0
-                : doctorWorkingPattern.getBufferDuration();
+            boolean available = availabilityChecker.isAvailable(slotStart, slotEnd, timeOffs, bookedSlots);
 
-        while (true) {
-
-            LocalDateTime slotEnd = current.plusMinutes(slotDuration);
-
-            if (slotEnd.isAfter(workEnd)) {
-                break;
-            }
-
-            boolean available = true;
-
-            for (DoctorTimeOff off : timeOffs) {
-
-                if (overlap(current, slotEnd, off.getStartDatetime(), off.getEndDatetime())) {
-                    available = false;
-                    break;
-                }
-            }
-
-            slots.add(SlotResponse.builder().start(current).end(slotEnd).available(available).build());
-
-            current = slotEnd.plusMinutes(bufferDuration);
-        }
-
-        return slots;
-    }
-
-    private boolean overlap(LocalDateTime slotStart, LocalDateTime slotEnd, LocalDateTime offStart,
-            LocalDateTime offEnd) {
-
-        return slotStart.isBefore(offEnd) && slotEnd.isAfter(offStart);
+            return SlotResponse.builder().start(slotStart).end(slotEnd).available(available).build();
+        }).toList();
     }
 
     @Override
