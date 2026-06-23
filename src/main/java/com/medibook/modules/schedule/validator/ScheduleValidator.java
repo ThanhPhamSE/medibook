@@ -55,7 +55,7 @@ public class ScheduleValidator {
         // time off check
         LocalDate date = startDatetime.toLocalDate();
 
-        List<DoctorTimeOff> timeOffs = timeOffRepository.findByDoctorAndDate(doctorId, date.atStartOfDay(),
+        List<DoctorTimeOff> timeOffs = timeOffRepository.findOverlappingDate(doctorId, date.atStartOfDay(),
                 date.plusDays(1).atStartOfDay());
 
         for (DoctorTimeOff off : timeOffs) {

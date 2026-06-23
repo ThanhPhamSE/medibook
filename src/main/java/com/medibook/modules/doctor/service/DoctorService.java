@@ -27,4 +27,5 @@ public interface DoctorService {
 
     Doctor getDoctorEntityById(Long id);
 
+    Doctor getDoctorByUserId(Long userId);
 }

@@ -17,4 +17,5 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long>,
 
     @EntityGraph(attributePaths = { "user", "specialty" })
     Optional<Doctor> findByIdAndDeletedAtIsNull(Long id);
+
 }

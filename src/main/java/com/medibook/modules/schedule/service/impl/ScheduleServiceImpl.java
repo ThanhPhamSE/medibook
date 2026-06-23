@@ -1,5 +1,6 @@
 package com.medibook.modules.schedule.service.impl;
 
+import com.medibook.modules.appointment.repository.AppointmentRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -41,6 +42,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ScheduleServiceImpl implements ScheduleService {
 
+    private final AppointmentRepository appointmentRepository;
     private final DoctorWorkingPatternRepository doctorWorkingPatternRepository;
     private final DoctorTimeOffRepository doctorTimeOffRepository;
     private final DoctorService doctorService;
@@ -78,6 +80,10 @@ public class ScheduleServiceImpl implements ScheduleService {
         DoctorWorkingPattern pattern = doctorWorkingPatternRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Working pattern not found"));
 
+        if (appointmentRepository.existsFutureAppointment(pattern.getDoctor().getId(), LocalDateTime.now())) {
+            throw new BadRequestException("Cannot delete working pattern because future appointments exist");
+        }
+
         pattern.setDeletedAt(LocalDateTime.now());
 
         doctorWorkingPatternRepository.save(pattern);
@@ -113,6 +119,15 @@ public class ScheduleServiceImpl implements ScheduleService {
         DoctorTimeOff doctorTimeOff = doctorTimeOffRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Time off not found"));
 
+        LocalDateTime now = LocalDateTime.now();
+
+        if (doctorTimeOff.getStartDatetime().isBefore(now)
+                &&
+                doctorTimeOff.getEndDatetime().isAfter(now)) {
+            throw new BadRequestException(
+                    "Cannot delete ongoing time off");
+        }
+
         doctorTimeOff.setDeletedAt(LocalDateTime.now());
 
         doctorTimeOffRepository.save(doctorTimeOff);
@@ -140,7 +155,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         LocalDateTime workEnd = LocalDateTime.of(date, pattern.getEndTime());
 
-        List<DoctorTimeOff> timeOffs = doctorTimeOffRepository.findByDoctorAndDate(doctor.getId(), date.atStartOfDay(),
+        List<DoctorTimeOff> timeOffs = doctorTimeOffRepository.findOverlappingDate(doctor.getId(), date.atStartOfDay(),
                 date.plusDays(1).atStartOfDay());
 
         Set<LocalDateTime> bookedSlots = appointmentService.getBookedAppointmentsByDate(doctor.getId(), date).stream()

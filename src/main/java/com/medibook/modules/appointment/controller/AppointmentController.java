@@ -1,5 +1,6 @@
 package com.medibook.modules.appointment.controller;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.medibook.common.response.ApiResponse;
 import com.medibook.modules.appointment.dto.request.AppointmentCreateRequest;
+import com.medibook.modules.appointment.dto.request.AppointmentRescheduleRequest;
 import com.medibook.modules.appointment.dto.response.AppointmentResponse;
 import com.medibook.modules.appointment.service.AppointmentService;
 
@@ -69,5 +71,59 @@ public class AppointmentController {
             @RequestParam LocalDate date) {
 
         return ResponseEntity.ok(ApiResponse.success(appointmentService.getBookedAppointmentsByDate(doctorId, date)));
+    }
+
+    @PatchMapping("/{id}/confirm")
+    public ResponseEntity<ApiResponse<Void>> confirm(@PathVariable Long id) {
+
+        appointmentService.confirmAppointment(id);
+
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PatchMapping("/{id}/complete")
+    public ResponseEntity<ApiResponse<Void>> complete(@PathVariable Long id) {
+
+        appointmentService.completeAppointment(id);
+
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PatchMapping("/{id}/no-show")
+    public ResponseEntity<ApiResponse<Void>> noShow(@PathVariable Long id) {
+
+        appointmentService.markNoShow(id);
+
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @GetMapping("/doctor/today")
+    public ResponseEntity<ApiResponse<Page<AppointmentResponse>>> today(
+            Pageable pageable) {
+
+        LocalDate today = LocalDate.now();
+
+        return ResponseEntity
+                .ok(ApiResponse.success(appointmentService.getDoctorAppointments(null, today, today, pageable)));
+    }
+
+    @GetMapping("/doctor/week")
+    public ResponseEntity<ApiResponse<Page<AppointmentResponse>>> week(Pageable pageable) {
+
+        LocalDate today = LocalDate.now();
+
+        LocalDate start = today.with(DayOfWeek.MONDAY);
+
+        LocalDate end = today.with(DayOfWeek.SUNDAY);
+
+        return ResponseEntity
+                .ok(ApiResponse.success(appointmentService.getDoctorAppointments(null, start, end, pageable)));
+    }
+
+    @PutMapping("/{id}/reschedule")
+    public ResponseEntity<ApiResponse<AppointmentResponse>> rescheduleAppointment(@PathVariable Long id,
+            @Valid @RequestBody AppointmentRescheduleRequest request) {
+
+        return ResponseEntity.ok(ApiResponse.success(appointmentService.rescheduleAppointment(id, request)));
     }
 }

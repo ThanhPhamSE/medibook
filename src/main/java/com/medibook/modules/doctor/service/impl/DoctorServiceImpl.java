@@ -185,6 +185,14 @@ public class DoctorServiceImpl implements DoctorService {
         doctor.setDeletedAt(LocalDateTime.now());
     }
 
+    @Override
+    public Doctor getDoctorByUserId(Long userId) {
+
+        return doctorRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found with this account"));
+
+    }
+
     private Doctor getDoctor(Long id) {
 
         return doctorRepository.findByIdAndDeletedAtIsNull(id)
