@@ -18,7 +18,11 @@ public final class DoctorSpecification {
 
     public static Specification<Doctor> base() {
         return (root, query, cb) -> {
-            if (query.getResultType() != Long.class) {
+            if (query != null && query.getResultType() != Long.class && query.getResultType() != long.class) {
+
+                root.fetch("user", JoinType.LEFT);
+                root.fetch("specialty", JoinType.LEFT);
+
                 query.distinct(true);
             }
             return cb.conjunction();

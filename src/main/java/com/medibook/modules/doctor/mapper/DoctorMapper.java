@@ -14,10 +14,9 @@ import com.medibook.modules.doctor.dto.response.DoctorResponse;
 import com.medibook.modules.doctor.dto.response.DoctorSummaryResponse;
 import com.medibook.modules.doctor.entity.Doctor;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", unmappedTargetPolicy = org.mapstruct.ReportingPolicy.ERROR)
 public interface DoctorMapper {
 
-    // CREATE
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "specialty", ignore = true)
@@ -29,7 +28,6 @@ public interface DoctorMapper {
     @Mapping(target = "version", ignore = true)
     Doctor toEntity(CreateDoctorRequest request);
 
-    // UPDATE
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "user", ignore = true)
@@ -42,7 +40,6 @@ public interface DoctorMapper {
     @Mapping(target = "version", ignore = true)
     void updateEntity(UpdateDoctorRequest request, @MappingTarget Doctor doctor);
 
-    // DETAIL RESPONSE
     @Mapping(source = "user.id", target = "userId")
     @Mapping(source = "user.fullName", target = "fullName")
     @Mapping(source = "user.email", target = "email")
@@ -55,7 +52,6 @@ public interface DoctorMapper {
 
     List<DoctorResponse> toResponseList(List<Doctor> doctors);
 
-    // SUMMARY RESPONSE
     @Mapping(source = "user.fullName", target = "fullName")
     @Mapping(source = "user.profileImage", target = "profileImage")
     @Mapping(source = "specialty.name", target = "specialtyName")

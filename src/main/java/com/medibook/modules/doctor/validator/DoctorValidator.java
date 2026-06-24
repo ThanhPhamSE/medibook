@@ -2,6 +2,7 @@ package com.medibook.modules.doctor.validator;
 
 import org.springframework.stereotype.Component;
 
+import com.medibook.common.constant.RoleConstants;
 import com.medibook.common.exception.BadRequestException;
 import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.modules.doctor.dto.request.DoctorSearchRequest;
@@ -33,11 +34,7 @@ public class DoctorValidator {
 
     public void validateUpgradeToDoctor(User user) {
 
-        if (user == null) {
-            throw new ResourceNotFoundException("User not found");
-        }
-
-        if ("DOCTOR".equals(user.getRole().getName())) {
+        if (RoleConstants.DOCTOR.equals(user.getRole().getName())) {
             throw new BadRequestException("User is already a doctor");
         }
 
@@ -50,4 +47,18 @@ public class DoctorValidator {
         }
     }
 
+    public void validateCreateDoctor(User user) {
+
+        if (!RoleConstants.DOCTOR.equals(user.getRole().getName())) {
+            throw new BadRequestException("User must have DOCTOR role");
+        }
+
+        if (doctorRepository.existsByUserId(user.getId())) {
+            throw new BadRequestException("Doctor profile already exists");
+        }
+
+        if (!user.getIsActive()) {
+            throw new BadRequestException("User is inactive");
+        }
+    }
 }

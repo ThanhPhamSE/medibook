@@ -13,7 +13,7 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long>,
 
     boolean existsByUserId(Long userId);
 
-    Optional<Doctor> findByUserId(Long userId);
+    Optional<Doctor> findByUserIdAndDeletedAtIsNull(Long userId);
 
     @EntityGraph(attributePaths = { "user", "specialty" })
     Optional<Doctor> findByIdAndDeletedAtIsNull(Long id);

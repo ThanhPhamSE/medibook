@@ -8,10 +8,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.medibook.common.constant.RoleConstants;
 import com.medibook.common.exception.BadRequestException;
 import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.common.response.PageResponse;
 import com.medibook.common.response.util.PageMapper;
+import com.medibook.modules.audit.service.AuditService;
 import com.medibook.modules.doctor.dto.request.CreateDoctorRequest;
 import com.medibook.modules.doctor.dto.request.DoctorSearchRequest;
 import com.medibook.modules.doctor.dto.request.UpdateDoctorRequest;
@@ -39,59 +41,50 @@ import lombok.RequiredArgsConstructor;
 public class DoctorServiceImpl implements DoctorService {
 
     private final DoctorRepository doctorRepository;
-
     private final UserRepository userRepository;
-
     private final SpecialtyRepository specialtyRepository;
-
     private final DoctorMapper doctorMapper;
-
     private final DoctorValidator validator;
-
     private final RoleService roleService;
+    private final AuditService auditService;
 
     @Override
     public DoctorResponse createDoctor(CreateDoctorRequest request) {
+
         User user = getUser(request.getUserId());
-
-        if (!"DOCTOR".equals(user.getRole().getName())) {
-            throw new BadRequestException("User must have DOCTOR role");
-        }
-
-        if (doctorRepository.existsByUserId(request.getUserId())) {
-            throw new BadRequestException("Doctor profile already exists");
-        }
+        validator.validateCreateDoctor(user);
 
         Specialty specialty = getSpecialty(request.getSpecialtyId());
 
         Doctor doctor = doctorMapper.toEntity(request);
-
         doctor.setUser(user);
-
         doctor.setSpecialty(specialty);
 
         doctor = doctorRepository.save(doctor);
+        doctor = getDoctorEntityById(doctor.getId());
+
+        auditService.log("CREATE", "DOCTOR", doctor.getId(), null, doctor);
 
         return doctorMapper.toResponse(doctor);
     }
 
     @Override
-    @Transactional
     public DoctorResponse upgradeToDoctor(UpgradeToDoctorRequest request) {
 
         User user = getUser(request.getUserId());
-
         validator.validateUpgradeToDoctor(user);
 
         Specialty specialty = getSpecialty(request.getSpecialtyId());
 
         Role doctorRole = roleService.getDoctorRole();
-
         user.setRole(doctorRole);
 
         Doctor doctor = createDoctorProfile(user, specialty, request);
 
         doctor = doctorRepository.save(doctor);
+        doctor = getDoctorEntityById(doctor.getId());
+
+        auditService.log("UPGRADE", "DOCTOR", doctor.getId(), null, doctor);
 
         return doctorMapper.toResponse(doctor);
     }
@@ -99,10 +92,7 @@ public class DoctorServiceImpl implements DoctorService {
     @Override
     @Transactional(readOnly = true)
     public DoctorResponse getDoctorById(Long id) {
-
-        Doctor doctor = getDoctor(id);
-
-        return doctorMapper.toResponse(doctor);
+        return doctorMapper.toResponse(getDoctor(id));
     }
 
     @Override
@@ -114,9 +104,7 @@ public class DoctorServiceImpl implements DoctorService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<DoctorSummaryResponse> searchDoctors(
-            DoctorSearchRequest request,
-            Pageable pageable) {
+    public PageResponse<DoctorSummaryResponse> searchDoctors(DoctorSearchRequest request, Pageable pageable) {
 
         validator.validateSearchRequest(request);
 
@@ -144,16 +132,33 @@ public class DoctorServiceImpl implements DoctorService {
 
         Doctor doctor = getDoctor(id);
 
-        Specialty specialty = getSpecialty(request.getSpecialtyId());
+        Doctor oldSnapshot = buildSnapshot(doctor);
 
         doctorMapper.updateEntity(request, doctor);
 
-        doctor.setSpecialty(specialty);
+        if (request.getSpecialtyId() != null) {
+            doctor.setSpecialty(getSpecialty(request.getSpecialtyId()));
+        }
 
         doctor = doctorRepository.save(doctor);
+        doctor = getDoctorEntityById(doctor.getId());
+
+        auditService.log("UPDATE", "DOCTOR", doctor.getId(), oldSnapshot, doctor);
 
         return doctorMapper.toResponse(doctor);
+    }
 
+    @Override
+    public void deleteDoctor(Long id) {
+
+        Doctor doctor = getDoctor(id);
+
+        Doctor snapshot = buildSnapshot(doctor);
+
+        doctor.setDeletedAt(LocalDateTime.now());
+        doctorRepository.save(doctor);
+
+        auditService.log("DELETE", "DOCTOR", doctor.getId(), snapshot, null);
     }
 
     private Doctor createDoctorProfile(User user, Specialty specialty, UpgradeToDoctorRequest request) {
@@ -173,39 +178,38 @@ public class DoctorServiceImpl implements DoctorService {
         return doctor;
     }
 
-    @Override
-    public void deleteDoctor(Long id) {
+    private Doctor buildSnapshot(Doctor doctor) {
 
-        Doctor doctor = getDoctor(id);
+        Doctor snapshot = new Doctor();
+        snapshot.setId(doctor.getId());
+        snapshot.setDegree(doctor.getDegree());
+        snapshot.setExperienceYears(doctor.getExperienceYears());
+        snapshot.setConsultationFee(doctor.getConsultationFee());
+        snapshot.setBiography(doctor.getBiography());
+        snapshot.setAverageRating(doctor.getAverageRating());
+        snapshot.setTotalReviews(doctor.getTotalReviews());
 
-        if (!doctor.getUser().getIsActive()) {
-            throw new BadRequestException("Doctor already disabled");
-        }
-
-        doctor.setDeletedAt(LocalDateTime.now());
+        return snapshot;
     }
 
     @Override
     public Doctor getDoctorByUserId(Long userId) {
-
-        return doctorRepository.findByUserId(userId)
+        return doctorRepository.findByUserIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found with this account"));
-
     }
 
     private Doctor getDoctor(Long id) {
-
         return doctorRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found"));
     }
 
     private User getUser(Long id) {
-
-        return userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
     private Specialty getSpecialty(Long id) {
-
-        return specialtyRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Specialty not found"));
+        return specialtyRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Specialty not found"));
     }
 }
