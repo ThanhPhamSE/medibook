@@ -11,7 +11,7 @@ public final class SecurityUtils {
     public SecurityUtils() {
     }
 
-    public static Long getCurrentUserId() {
+    public Long getCurrentUserId() {
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
