@@ -13,6 +13,6 @@ public class SpecialtyUpdateRequest {
     @Size(max = 100, message = "Name must not exceed 100 characters")
     private String name;
 
-    @Size(max = 1000, message = "Description must not exceed 100 characters")
+    @Size(max = 1000, message = "Description must not exceed 1000 characters")
     private String description;
 }

@@ -1,7 +1,5 @@
 package com.medibook.modules.specialty.service;
 
-import java.util.List;
-
 import org.springframework.data.domain.Pageable;
 
 import com.medibook.common.response.PageResponse;
@@ -15,13 +13,13 @@ public interface SpecialtyService {
 
     SpecialtyResponse update(Long id, SpecialtyUpdateRequest request);
 
-    List<SpecialtyResponse> getAll();
-
     SpecialtyResponse getById(Long id);
 
     void delete(Long id);
 
-    PageResponse<SpecialtyResponse> getAllByPage(Pageable pageable);
-
     PageResponse<SpecialtyResponse> getAllByNameAndPage(String keyword, Pageable pageable);
+
+    SpecialtyResponse restore(Long id);
+
+    PageResponse<SpecialtyResponse> getDeleted(Pageable pageable);
 }

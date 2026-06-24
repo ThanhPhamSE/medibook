@@ -1,7 +1,7 @@
 package com.medibook.modules.specialty.service.impl;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,6 +12,7 @@ import com.medibook.common.exception.BadRequestException;
 import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.common.response.PageResponse;
 import com.medibook.common.response.util.PageMapper;
+import com.medibook.modules.audit.service.AuditService;
 import com.medibook.modules.specialty.dto.request.SpecialtyCreateRequest;
 import com.medibook.modules.specialty.dto.request.SpecialtyUpdateRequest;
 import com.medibook.modules.specialty.dto.response.SpecialtyResponse;
@@ -29,73 +30,93 @@ public class SpecialtyServiceImpl implements SpecialtyService {
 
     private final SpecialtyRepository specialtyRepository;
     private final SpecialtyMapper specialtyMapper;
+    private final AuditService auditService;
 
-    @Override
     @Transactional
     public SpecialtyResponse create(SpecialtyCreateRequest request) {
 
-        if (specialtyRepository.existsByNameIgnoreCaseAndDeletedAtIsNull(request.getName().trim())) {
+        String name = request.getName().trim();
+        String description = request.getDescription() == null ? null : request.getDescription().trim();
+
+        Specialty existing = specialtyRepository.findForUpdateByName(name).orElse(null);
+
+        // tồn tại active
+        if (existing != null && existing.getDeletedAt() == null) {
             throw new BadRequestException("Specialty already exists");
         }
 
-        Specialty specialty = specialtyMapper.toEntityWhenCreate(request);
+        // CASE 2: tồn tại deleted
+        if (existing != null && existing.getDeletedAt() != null) {
+            existing.setDeletedAt(null);
+            existing.setDescription(description);
 
-        return specialtyMapper.toResponse(specialtyRepository.save(specialty));
+            Specialty saved = specialtyRepository.save(existing);
+            auditService.log("RESTORE", "SPECIALTY", saved.getId(), null, saved);
 
+            return specialtyMapper.toResponse(saved);
+        }
+
+        // chưa tồn tại
+        Specialty specialty = specialtyMapper.toEntity(request);
+        specialty.setName(name);
+        specialty.setDescription(description);
+
+        Specialty saved = specialtyRepository.save(specialty);
+
+        auditService.log("CREATE", "SPECIALTY", saved.getId(), null, saved);
+
+        return specialtyMapper.toResponse(saved);
     }
 
-    @Override
     @Transactional
     public SpecialtyResponse update(Long id, SpecialtyUpdateRequest request) {
 
-        Specialty specialty = specialtyRepository.findByIdAndDeletedAtIsNull(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Specialty not found"));
+        String name = request.getName().trim();
+        String description = request.getDescription() == null ? null : request.getDescription().trim();
 
-        if (specialtyRepository.existsByNameIgnoreCaseAndDeletedAtIsNullAndIdNot(request.getName().trim(), id)) {
+        Specialty specialty = findSpecialtyById(id);
+
+        Specialty conflict = specialtyRepository.findForUpdateByName(name).orElse(null);
+
+        if (conflict != null
+                && !conflict.getId().equals(id)
+                && conflict.getDeletedAt() == null) {
             throw new BadRequestException("Specialty already exists");
         }
 
-        specialty = specialtyMapper.toEntityWhenUpdate(request);
+        Specialty oldSnapshot = new Specialty();
+        oldSnapshot.setId(specialty.getId());
+        oldSnapshot.setName(specialty.getName());
+        oldSnapshot.setDescription(specialty.getDescription());
 
-        return specialtyMapper.toResponse(specialtyRepository.save(specialty));
-    }
+        specialty.setName(name);
+        specialty.setDescription(description);
 
-    @Override
-    public List<SpecialtyResponse> getAll() {
+        Specialty saved = specialtyRepository.save(specialty);
 
-        return specialtyRepository.findAllByDeletedAtIsNull().stream().map(specialtyMapper::toResponse).toList();
+        auditService.log("UPDATE", "SPECIALTY", saved.getId(), oldSnapshot, saved);
+
+        return specialtyMapper.toResponse(saved);
     }
 
     @Override
     public SpecialtyResponse getById(Long id) {
 
-        Specialty specialty = specialtyRepository.findByIdAndDeletedAtIsNull(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Specialty not found"));
+        Specialty specialty = findSpecialtyById(id);
 
         return specialtyMapper.toResponse(specialty);
     }
 
-    @Override
     @Transactional
     public void delete(Long id) {
 
-        Specialty specialty = specialtyRepository.findByIdAndDeletedAtIsNull(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Specialty not found"));
+        Specialty specialty = findSpecialtyById(id);
 
         specialty.setDeletedAt(LocalDateTime.now());
 
         specialtyRepository.save(specialty);
 
-    }
-
-    @Override
-    public PageResponse<SpecialtyResponse> getAllByPage(Pageable pageable) {
-
-        Page<SpecialtyResponse> page = specialtyRepository.findAllByDeletedAtIsNull(pageable)
-                .map(specialtyMapper::toResponse);
-
-        return PageMapper.from(page);
-
+        auditService.log("DELETE", "SPECIALTY", id, specialty, null);
     }
 
     @Override
@@ -103,17 +124,52 @@ public class SpecialtyServiceImpl implements SpecialtyService {
 
         Page<SpecialtyResponse> page;
 
+        keyword = keyword == null ? null : keyword.trim();
+
         if (keyword != null && !keyword.isBlank()) {
 
-            page = specialtyRepository.findByDeletedAtIsNullAndNameContainingIgnoreCase(keyword, pageable)
+            page = specialtyRepository.findByNameContainingIgnoreCaseAndDeletedAtIsNull(keyword, pageable)
                     .map(specialtyMapper::toResponse);
 
         } else {
 
-            page = specialtyRepository.findAllByDeletedAtIsNull(pageable).map(specialtyMapper::toResponse);
+            page = specialtyRepository.findByDeletedAtIsNull(pageable).map(specialtyMapper::toResponse);
         }
 
         return PageMapper.from(page);
     }
 
+    @Transactional
+    public SpecialtyResponse restore(Long id) {
+
+        Specialty specialty = specialtyRepository.findByIdAndDeletedAtIsNotNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Deleted specialty not found"));
+
+        Specialty conflict = specialtyRepository.findForUpdateByName(specialty.getName()).orElse(null);
+
+        if (conflict != null && conflict.getDeletedAt() == null) {
+            throw new BadRequestException("Active specialty with same name exists");
+        }
+
+        specialty.setDeletedAt(null);
+
+        Specialty saved = specialtyRepository.save(specialty);
+
+        auditService.log("RESTORE", "SPECIALTY", id, null, saved);
+
+        return specialtyMapper.toResponse(saved);
+    }
+
+    @Override
+    public PageResponse<SpecialtyResponse> getDeleted(Pageable pageable) {
+        Page<SpecialtyResponse> page = specialtyRepository.findByDeletedAtIsNotNull(pageable)
+                .map(specialtyMapper::toResponse);
+
+        return PageMapper.from(page);
+    }
+
+    private Specialty findSpecialtyById(Long id) {
+        return specialtyRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Specialty not found"));
+    }
 }
