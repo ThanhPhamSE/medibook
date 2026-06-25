@@ -4,7 +4,6 @@ import com.medibook.common.response.ApiResponse;
 import com.medibook.common.response.PageResponse;
 import com.medibook.modules.specialty.dto.response.SpecialtyResponse;
 import com.medibook.modules.specialty.service.SpecialtyService;
-import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Pageable;
@@ -35,7 +34,7 @@ public class SpecialtyController {
 
         @GetMapping("/{id}")
         public ResponseEntity<ApiResponse<SpecialtyResponse>> getById(
-                        @Positive(message = "ID must be a positive number") @PathVariable Long id) {
+                        @PathVariable Long id) {
 
                 SpecialtyResponse response = specialtyService.getById(id);
 

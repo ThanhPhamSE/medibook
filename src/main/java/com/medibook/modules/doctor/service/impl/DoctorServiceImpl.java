@@ -37,6 +37,7 @@ import lombok.RequiredArgsConstructor;
 public class DoctorServiceImpl implements DoctorService {
 
     private final DoctorRepository doctorRepository;
+
     private final DoctorMapper doctorMapper;
     private final DoctorValidator validator;
     private final AuditService auditService;
@@ -199,5 +200,6 @@ public class DoctorServiceImpl implements DoctorService {
         return doctorRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found"));
     }
+
 
 }

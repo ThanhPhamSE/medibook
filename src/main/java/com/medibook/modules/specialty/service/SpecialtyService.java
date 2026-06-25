@@ -6,6 +6,7 @@ import com.medibook.common.response.PageResponse;
 import com.medibook.modules.specialty.dto.request.SpecialtyCreateRequest;
 import com.medibook.modules.specialty.dto.request.SpecialtyUpdateRequest;
 import com.medibook.modules.specialty.dto.response.SpecialtyResponse;
+import com.medibook.modules.specialty.entity.Specialty;
 
 public interface SpecialtyService {
 
@@ -22,4 +23,6 @@ public interface SpecialtyService {
     SpecialtyResponse restore(Long id);
 
     PageResponse<SpecialtyResponse> getDeleted(Pageable pageable);
+
+    Specialty getEntityById(Long id);
 }

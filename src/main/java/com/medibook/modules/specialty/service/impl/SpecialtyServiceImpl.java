@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.medibook.common.exception.BadRequestException;
+import com.medibook.common.exception.ConflictException;
 import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.common.response.PageResponse;
 import com.medibook.common.response.util.PageMapper;
@@ -41,7 +42,7 @@ public class SpecialtyServiceImpl implements SpecialtyService {
 
         // tồn tại active
         if (existing != null && existing.getDeletedAt() == null) {
-            throw new BadRequestException("Specialty already exists");
+            throw new ConflictException("Specialty already exists");
         }
 
         // CASE 2: tồn tại deleted
@@ -69,6 +70,7 @@ public class SpecialtyServiceImpl implements SpecialtyService {
 
     @Transactional
     public SpecialtyResponse update(Long id, SpecialtyUpdateRequest request) {
+        validateId(id);
 
         String name = request.getName().trim();
         String description = request.getDescription() == null ? null : request.getDescription().trim();
@@ -80,7 +82,7 @@ public class SpecialtyServiceImpl implements SpecialtyService {
         if (conflict != null
                 && !conflict.getId().equals(id)
                 && conflict.getDeletedAt() == null) {
-            throw new BadRequestException("Specialty already exists");
+            throw new ConflictException("Specialty already exists");
         }
 
         Specialty oldSnapshot = new Specialty();
@@ -88,6 +90,7 @@ public class SpecialtyServiceImpl implements SpecialtyService {
         oldSnapshot.setName(specialty.getName());
         oldSnapshot.setDescription(specialty.getDescription());
 
+        specialtyMapper.updateEntity(request, specialty);
         specialty.setName(name);
         specialty.setDescription(description);
 
@@ -100,6 +103,7 @@ public class SpecialtyServiceImpl implements SpecialtyService {
 
     @Override
     public SpecialtyResponse getById(Long id) {
+        validateId(id);
 
         Specialty specialty = findSpecialtyById(id);
 
@@ -108,6 +112,7 @@ public class SpecialtyServiceImpl implements SpecialtyService {
 
     @Transactional
     public void delete(Long id) {
+        validateId(id);
 
         Specialty specialty = findSpecialtyById(id);
 
@@ -140,6 +145,7 @@ public class SpecialtyServiceImpl implements SpecialtyService {
 
     @Transactional
     public SpecialtyResponse restore(Long id) {
+        validateId(id);
 
         Specialty specialty = specialtyRepository.findByIdAndDeletedAtIsNotNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Deleted specialty not found"));
@@ -147,7 +153,7 @@ public class SpecialtyServiceImpl implements SpecialtyService {
         Specialty conflict = specialtyRepository.findForUpdateByName(specialty.getName()).orElse(null);
 
         if (conflict != null && conflict.getDeletedAt() == null) {
-            throw new BadRequestException("Active specialty with same name exists");
+            throw new ConflictException("Active specialty with same name exists");
         }
 
         specialty.setDeletedAt(null);
@@ -170,5 +176,17 @@ public class SpecialtyServiceImpl implements SpecialtyService {
     private Specialty findSpecialtyById(Long id) {
         return specialtyRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Specialty not found"));
+    }
+
+    @Override
+    public Specialty getEntityById(Long id) {
+        validateId(id);
+        return findSpecialtyById(id);
+    }
+
+    private void validateId(Long id) {
+        if (id == null || id <= 0) {
+            throw new BadRequestException("ID must be a positive number");
+        }
     }
 }
