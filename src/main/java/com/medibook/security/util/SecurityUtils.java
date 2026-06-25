@@ -3,9 +3,12 @@ package com.medibook.security.util;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import org.springframework.stereotype.Component;
+
 import com.medibook.common.exception.UnauthorizedException;
 import com.medibook.security.model.CustomUserPrincipal;
 
+@Component
 public final class SecurityUtils {
 
     public SecurityUtils() {

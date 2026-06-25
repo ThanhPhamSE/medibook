@@ -25,7 +25,7 @@ import com.medibook.modules.doctor.service.DoctorService;
 import com.medibook.modules.doctor.specification.DoctorSpecification;
 import com.medibook.modules.doctor.validator.DoctorValidator;
 import com.medibook.modules.specialty.entity.Specialty;
-import com.medibook.modules.specialty.repository.SpecialtyRepository;
+import com.medibook.modules.specialty.service.SpecialtyService;
 import com.medibook.modules.user.entity.Role;
 import com.medibook.modules.user.entity.User;
 import com.medibook.modules.user.repository.UserRepository;
@@ -42,7 +42,7 @@ public class DoctorServiceImpl implements DoctorService {
 
     private final UserRepository userRepository;
 
-    private final SpecialtyRepository specialtyRepository;
+    private final SpecialtyService specialtyService;
 
     private final DoctorMapper doctorMapper;
 
@@ -206,6 +206,6 @@ public class DoctorServiceImpl implements DoctorService {
 
     private Specialty getSpecialty(Long id) {
 
-        return specialtyRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Specialty not found"));
+        return specialtyService.getEntityById(id);
     }
 }

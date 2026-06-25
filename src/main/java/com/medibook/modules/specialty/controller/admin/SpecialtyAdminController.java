@@ -7,7 +7,6 @@ import com.medibook.modules.specialty.dto.request.SpecialtyUpdateRequest;
 import com.medibook.modules.specialty.dto.response.SpecialtyResponse;
 import com.medibook.modules.specialty.service.SpecialtyService;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Pageable;
@@ -43,7 +42,7 @@ public class SpecialtyAdminController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<SpecialtyResponse>> update(
-            @Positive(message = "ID must be a positive number") @PathVariable Long id,
+            @PathVariable Long id,
             @Valid @RequestBody SpecialtyUpdateRequest request) {
 
         SpecialtyResponse response = specialtyService.update(id, request);
@@ -56,7 +55,7 @@ public class SpecialtyAdminController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(
-            @Positive(message = "ID must be a positive number") @PathVariable Long id) {
+            @PathVariable Long id) {
 
         specialtyService.delete(id);
 
