@@ -8,8 +8,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.medibook.common.constant.RoleConstants;
-import com.medibook.common.exception.BadRequestException;
 import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.common.response.PageResponse;
 import com.medibook.common.response.util.PageMapper;
@@ -27,11 +25,9 @@ import com.medibook.modules.doctor.service.DoctorService;
 import com.medibook.modules.doctor.specification.DoctorSpecification;
 import com.medibook.modules.doctor.validator.DoctorValidator;
 import com.medibook.modules.specialty.entity.Specialty;
-import com.medibook.modules.specialty.repository.SpecialtyRepository;
-import com.medibook.modules.user.entity.Role;
+import com.medibook.modules.specialty.facade.SpecialtyFacade;
 import com.medibook.modules.user.entity.User;
-import com.medibook.modules.user.repository.UserRepository;
-import com.medibook.modules.user.service.RoleService;
+import com.medibook.modules.user.facade.UserFacade;
 
 import lombok.RequiredArgsConstructor;
 
@@ -41,20 +37,19 @@ import lombok.RequiredArgsConstructor;
 public class DoctorServiceImpl implements DoctorService {
 
     private final DoctorRepository doctorRepository;
-    private final UserRepository userRepository;
-    private final SpecialtyRepository specialtyRepository;
     private final DoctorMapper doctorMapper;
     private final DoctorValidator validator;
-    private final RoleService roleService;
     private final AuditService auditService;
+    private final UserFacade userFacade;
+    private final SpecialtyFacade specialtyFacade;
 
     @Override
     public DoctorResponse createDoctor(CreateDoctorRequest request) {
 
-        User user = getUser(request.getUserId());
+        User user = userFacade.getUserById(request.getUserId());
         validator.validateCreateDoctor(user);
 
-        Specialty specialty = getSpecialty(request.getSpecialtyId());
+        Specialty specialty = specialtyFacade.getSpecialtyById(request.getSpecialtyId());
 
         Doctor doctor = doctorMapper.toEntity(request);
         doctor.setUser(user);
@@ -71,13 +66,12 @@ public class DoctorServiceImpl implements DoctorService {
     @Override
     public DoctorResponse upgradeToDoctor(UpgradeToDoctorRequest request) {
 
-        User user = getUser(request.getUserId());
+        User user = userFacade.getUserById(request.getUserId());
         validator.validateUpgradeToDoctor(user);
 
-        Specialty specialty = getSpecialty(request.getSpecialtyId());
+        Specialty specialty = specialtyFacade.getSpecialtyById(request.getSpecialtyId());
 
-        Role doctorRole = roleService.getDoctorRole();
-        user.setRole(doctorRole);
+        userFacade.upgradeToDoctor(request.getUserId());
 
         Doctor doctor = createDoctorProfile(user, specialty, request);
 
@@ -137,7 +131,7 @@ public class DoctorServiceImpl implements DoctorService {
         doctorMapper.updateEntity(request, doctor);
 
         if (request.getSpecialtyId() != null) {
-            doctor.setSpecialty(getSpecialty(request.getSpecialtyId()));
+            doctor.setSpecialty(specialtyFacade.getSpecialtyById(request.getSpecialtyId()));
         }
 
         doctor = doctorRepository.save(doctor);
@@ -168,8 +162,9 @@ public class DoctorServiceImpl implements DoctorService {
         doctor.setUser(user);
         doctor.setSpecialty(specialty);
         doctor.setDegree(request.getDegree());
-        doctor.setExperienceYears(request.getExperienceYears());
-        doctor.setConsultationFee(request.getConsultationFee());
+        doctor.setExperienceYears(request.getExperienceYears() == null ? 0 : request.getExperienceYears());
+        doctor.setConsultationFee(
+                request.getConsultationFee() == null ? BigDecimal.ZERO : request.getConsultationFee());
         doctor.setBiography(request.getBiography());
 
         doctor.setAverageRating(BigDecimal.ZERO);
@@ -182,6 +177,8 @@ public class DoctorServiceImpl implements DoctorService {
 
         Doctor snapshot = new Doctor();
         snapshot.setId(doctor.getId());
+        snapshot.setUser(doctor.getUser());
+        snapshot.setSpecialty(doctor.getSpecialty());
         snapshot.setDegree(doctor.getDegree());
         snapshot.setExperienceYears(doctor.getExperienceYears());
         snapshot.setConsultationFee(doctor.getConsultationFee());
@@ -203,13 +200,4 @@ public class DoctorServiceImpl implements DoctorService {
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found"));
     }
 
-    private User getUser(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-    }
-
-    private Specialty getSpecialty(Long id) {
-        return specialtyRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Specialty not found"));
-    }
 }

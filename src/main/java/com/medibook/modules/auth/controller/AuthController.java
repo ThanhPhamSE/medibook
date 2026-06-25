@@ -35,7 +35,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 public class AuthController {
 
     private final AuthService authService;
-    private final SecurityUtils securityUtils;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<RegisterResponse>> register(@Valid @RequestBody RegisterRequest request) {
@@ -77,7 +76,7 @@ public class AuthController {
     @PostMapping("/logout-all")
     public ResponseEntity<ApiResponse<Void>> logoutAll() {
 
-        Long userId = securityUtils.getCurrentUserId();
+        Long userId = SecurityUtils.getCurrentUserId();
 
         if (userId == null) {
             throw new UnauthorizedException("User not authenticated");
@@ -91,7 +90,7 @@ public class AuthController {
     @PostMapping("/change-password")
     public ResponseEntity<ApiResponse<Void>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
 
-        Long userId = securityUtils.getCurrentUserId();
+        Long userId = SecurityUtils.getCurrentUserId();
 
         authService.changePassword(userId, request);
 

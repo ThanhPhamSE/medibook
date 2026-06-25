@@ -6,7 +6,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.medibook.common.enums.DayOfWeekEnum;
-import com.medibook.modules.doctor.entity.DoctorWorkingPattern;
+import com.medibook.modules.schedule.entity.DoctorWorkingPattern;
 
 public interface DoctorWorkingPatternRepository extends JpaRepository<DoctorWorkingPattern, Long> {
 

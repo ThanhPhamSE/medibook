@@ -10,8 +10,8 @@ import org.springframework.stereotype.Component;
 
 import com.medibook.common.enums.DayOfWeekEnum;
 import com.medibook.common.exception.BadRequestException;
-import com.medibook.modules.doctor.entity.DoctorTimeOff;
-import com.medibook.modules.doctor.entity.DoctorWorkingPattern;
+import com.medibook.modules.schedule.entity.DoctorTimeOff;
+import com.medibook.modules.schedule.entity.DoctorWorkingPattern;
 import com.medibook.modules.schedule.repository.DoctorTimeOffRepository;
 import com.medibook.modules.schedule.repository.DoctorWorkingPatternRepository;
 

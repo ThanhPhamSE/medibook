@@ -1,9 +1,10 @@
-package com.medibook.modules.doctor.entity;
+package com.medibook.modules.schedule.entity;
 
 import java.time.LocalTime;
 
 import com.medibook.common.base.SoftDeleteEntity;
 import com.medibook.common.enums.DayOfWeekEnum;
+import com.medibook.modules.doctor.entity.Doctor;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

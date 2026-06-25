@@ -1,10 +1,11 @@
 package com.medibook.modules.doctor.validator;
 
+import java.math.BigDecimal;
+
 import org.springframework.stereotype.Component;
 
 import com.medibook.common.constant.RoleConstants;
 import com.medibook.common.exception.BadRequestException;
-import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.modules.doctor.dto.request.DoctorSearchRequest;
 import com.medibook.modules.doctor.repository.DoctorRepository;
 import com.medibook.modules.user.entity.User;
@@ -29,6 +30,41 @@ public class DoctorValidator {
                 && request.getMinFee().compareTo(request.getMaxFee()) > 0) {
 
             throw new BadRequestException("Min fee cannot be greater than max fee");
+        }
+
+        if (request.getMinExperience() != null
+                && request.getMinExperience() < 0) {
+
+            throw new BadRequestException(
+                    "Min experience cannot be negative");
+        }
+
+        if (request.getMaxExperience() != null
+                && request.getMaxExperience() < 0) {
+
+            throw new BadRequestException(
+                    "Max experience cannot be negative");
+        }
+
+        if (request.getMinFee() != null
+                && request.getMinFee().compareTo(BigDecimal.ZERO) < 0) {
+
+            throw new BadRequestException(
+                    "Min fee cannot be negative");
+        }
+
+        if (request.getMaxFee() != null
+                && request.getMaxFee().compareTo(BigDecimal.ZERO) < 0) {
+
+            throw new BadRequestException(
+                    "Max fee cannot be negative");
+        }
+
+        if (request.getMinRating() != null
+                && request.getMinRating().compareTo(BigDecimal.ZERO) < 0) {
+
+            throw new BadRequestException(
+                    "Rating cannot be negative");
         }
     }
 

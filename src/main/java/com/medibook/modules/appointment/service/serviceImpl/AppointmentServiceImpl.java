@@ -23,8 +23,8 @@ import com.medibook.modules.appointment.repository.AppointmentStatusHistoryRepos
 import com.medibook.modules.appointment.service.AppointmentService;
 import com.medibook.modules.appointment.validator.AppointmentValidator;
 import com.medibook.modules.doctor.entity.Doctor;
-import com.medibook.modules.doctor.entity.DoctorWorkingPattern;
 import com.medibook.modules.doctor.service.DoctorService;
+import com.medibook.modules.schedule.entity.DoctorWorkingPattern;
 import com.medibook.modules.schedule.validator.ScheduleValidator;
 import com.medibook.modules.user.entity.User;
 import com.medibook.modules.user.service.UserService;

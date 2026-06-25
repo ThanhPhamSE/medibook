@@ -18,5 +18,4 @@ public class TimeOffValidator {
             throw new BadRequestException("Time off cannot be zero duraiton");
         }
     }
-
 }

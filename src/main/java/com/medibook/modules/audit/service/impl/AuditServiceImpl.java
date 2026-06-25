@@ -23,7 +23,6 @@ public class AuditServiceImpl implements AuditService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final RequestUtils requestUtils;
-    private final SecurityUtils securityUtils;
 
     @Override
     @Async
@@ -35,7 +34,7 @@ public class AuditServiceImpl implements AuditService {
         auditLog.setEntityType(entityType);
         auditLog.setEntityId(entityId);
 
-        Long userId = securityUtils.getCurrentUserId();
+        Long userId = SecurityUtils.getCurrentUserId();
 
         if (userId != null) {
             auditLog.setUser(userRepository.findById(userId).orElse(null));

@@ -2,15 +2,16 @@ package com.medibook.modules.schedule.mapper;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.ReportingPolicy;
 
-import com.medibook.modules.doctor.entity.DoctorTimeOff;
-import com.medibook.modules.doctor.entity.DoctorWorkingPattern;
 import com.medibook.modules.schedule.dto.request.TimeOffRequest;
 import com.medibook.modules.schedule.dto.request.WorkingPatternRequest;
 import com.medibook.modules.schedule.dto.response.TimeOffResponse;
 import com.medibook.modules.schedule.dto.response.WorkingPatternResponse;
+import com.medibook.modules.schedule.entity.DoctorTimeOff;
+import com.medibook.modules.schedule.entity.DoctorWorkingPattern;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface ScheduleMapper {
 
     @Mapping(target = "id", ignore = true)
@@ -31,7 +32,5 @@ public interface ScheduleMapper {
     DoctorTimeOff toEntity(TimeOffRequest request);
 
     @Mapping(target = "doctorId", source = "doctor.id")
-    @Mapping(target = "startDateTime", source = "startDatetime")
-    @Mapping(target = "endDateTime", source = "endDatetime")
     TimeOffResponse toResponse(DoctorTimeOff entity);
 }

@@ -1,8 +1,9 @@
-package com.medibook.modules.doctor.entity;
+package com.medibook.modules.schedule.entity;
 
 import java.time.LocalDateTime;
 
 import com.medibook.common.base.SoftDeleteEntity;
+import com.medibook.modules.doctor.entity.Doctor;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

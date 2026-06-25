@@ -6,7 +6,7 @@ import java.util.Set;
 
 import org.springframework.stereotype.Component;
 
-import com.medibook.modules.doctor.entity.DoctorTimeOff;
+import com.medibook.modules.schedule.entity.DoctorTimeOff;
 
 @Component
 public class ScheduleAvailabilityChecker {

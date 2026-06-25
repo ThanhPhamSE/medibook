@@ -24,6 +24,11 @@ public class WorkingPatternValidator {
             throw new BadRequestException("Start time must me before end time");
         }
 
+        if (request.getSlotDuration() <= 0) {
+            throw new BadRequestException(
+                    "Slot duration must be greater than 0");
+        }
+
         long duration = Duration.between(request.getStartTime(), request.getEndTime()).toMinutes();
 
         if (duration < request.getSlotDuration()) {

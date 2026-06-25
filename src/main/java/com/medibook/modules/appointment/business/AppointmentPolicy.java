@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import org.springframework.stereotype.Component;
 
 import com.medibook.common.exception.BadRequestException;
-import com.medibook.modules.doctor.entity.DoctorWorkingPattern;
+import com.medibook.modules.schedule.entity.DoctorWorkingPattern;
 
 @Component
 public class AppointmentPolicy {
