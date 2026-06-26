@@ -2,10 +2,9 @@ package com.medibook.modules.specialty.facade.impl;
 
 import org.springframework.stereotype.Service;
 
-import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.modules.specialty.entity.Specialty;
 import com.medibook.modules.specialty.facade.SpecialtyFacade;
-import com.medibook.modules.specialty.repository.SpecialtyRepository;
+import com.medibook.modules.specialty.service.SpecialtyService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -13,12 +12,11 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SpecialtyFacadeImpl implements SpecialtyFacade {
 
-    private final SpecialtyRepository specialtyRepository;
+    private final SpecialtyService specialtyService;
 
     @Override
     public Specialty getSpecialtyById(Long id) {
-
-        return specialtyRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Specialty not found"));
+        return specialtyService.getEntityById(id);
     }
 
 }
