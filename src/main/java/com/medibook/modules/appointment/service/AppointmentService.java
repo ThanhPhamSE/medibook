@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import com.medibook.common.enums.AppointmentStatus;
+import com.medibook.common.response.PageResponse;
 import com.medibook.modules.appointment.dto.request.AppointmentCreateRequest;
 import com.medibook.modules.appointment.dto.request.AppointmentRescheduleRequest;
 import com.medibook.modules.appointment.dto.response.AppointmentResponse;
@@ -39,4 +40,12 @@ public interface AppointmentService {
     AppointmentResponse rescheduleAppointment(Long appointmentId, AppointmentRescheduleRequest request);
 
     Appointment getAppointmentEntity(Long id);
+
+    PageResponse<AppointmentResponse> getAllBookings(Pageable pageable);
+
+    PageResponse<AppointmentResponse> getMonthlySchedule(Long doctorId, AppointmentStatus status, LocalDate from,
+            LocalDate to, Pageable pageable);
+
+    PageResponse<AppointmentResponse> searchAdminBookings(String bookingCode, Long doctorId, Long patientId,
+            AppointmentStatus status, LocalDate from, LocalDate to, Pageable pageable);
 }

@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.medibook.common.enums.AppointmentStatus;
 import com.medibook.common.exception.BadRequestException;
 import com.medibook.common.exception.ResourceNotFoundException;
+import com.medibook.common.response.PageResponse;
+import com.medibook.common.response.util.PageMapper;
 import com.medibook.modules.appointment.dto.request.AppointmentCreateRequest;
 import com.medibook.modules.appointment.dto.request.AppointmentRescheduleRequest;
 import com.medibook.modules.appointment.dto.response.AppointmentResponse;
@@ -22,6 +24,7 @@ import com.medibook.modules.appointment.mapper.AppointmentMapper;
 import com.medibook.modules.appointment.repository.AppointmentRepository;
 import com.medibook.modules.appointment.repository.AppointmentStatusHistoryRepository;
 import com.medibook.modules.appointment.service.AppointmentService;
+import com.medibook.modules.appointment.specification.AppointmentSpecification;
 import com.medibook.modules.appointment.validator.AppointmentValidator;
 import com.medibook.modules.doctor.entity.Doctor;
 import com.medibook.modules.doctor.service.DoctorService;
@@ -286,5 +289,44 @@ public class AppointmentServiceImpl implements AppointmentService {
         history.setChangedAt(LocalDateTime.now());
 
         historyRepository.save(history);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AppointmentResponse> getAllBookings(Pageable pageable) {
+
+        var spec = AppointmentSpecification.notDeleted();
+
+        return PageMapper.from(appointmentRepository.findAll(spec, pageable), mapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AppointmentResponse> getMonthlySchedule(Long doctorId, AppointmentStatus status, LocalDate from,
+            LocalDate to, Pageable pageable) {
+
+        var spec = AppointmentSpecification.notDeleted()
+                .and(AppointmentSpecification.hasDoctorId(doctorId))
+                .and(AppointmentSpecification.hasStatus(status))
+                .and(AppointmentSpecification.startAfter(from != null ? from.atStartOfDay() : null))
+                .and(AppointmentSpecification.startBefore(to != null ? to.plusDays(1).atStartOfDay() : null));
+
+        return PageMapper.from(appointmentRepository.findAll(spec, pageable), mapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AppointmentResponse> searchAdminBookings(String bookingCode, Long doctorId, Long patientId,
+            AppointmentStatus status, LocalDate from, LocalDate to, Pageable pageable) {
+
+        var spec = AppointmentSpecification.notDeleted()
+                .and(AppointmentSpecification.hasBookingCodeLike(bookingCode))
+                .and(AppointmentSpecification.hasDoctorId(doctorId))
+                .and(AppointmentSpecification.hasPatientId(patientId))
+                .and(AppointmentSpecification.hasStatus(status))
+                .and(AppointmentSpecification.startAfter(from != null ? from.atStartOfDay() : null))
+                .and(AppointmentSpecification.startBefore(to != null ? to.plusDays(1).atStartOfDay() : null));
+
+        return PageMapper.from(appointmentRepository.findAll(spec, pageable), mapper::toResponse);
     }
 }

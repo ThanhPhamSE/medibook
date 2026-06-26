@@ -8,10 +8,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import com.medibook.common.enums.AppointmentStatus;
 import com.medibook.common.response.ApiResponse;
+import com.medibook.common.response.PageResponse;
 import com.medibook.modules.appointment.dto.request.AppointmentCreateRequest;
 import com.medibook.modules.appointment.dto.request.AppointmentRescheduleRequest;
 import com.medibook.modules.appointment.dto.response.AppointmentResponse;
@@ -125,5 +128,35 @@ public class AppointmentController {
             @Valid @RequestBody AppointmentRescheduleRequest request) {
 
         return ResponseEntity.ok(ApiResponse.success(appointmentService.rescheduleAppointment(id, request)));
+    }
+
+    @GetMapping("/admin/bookings")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<PageResponse<AppointmentResponse>>> getAllBookings(Pageable pageable) {
+
+        return ResponseEntity.ok(ApiResponse.success(appointmentService.getAllBookings(pageable)));
+    }
+
+    @GetMapping("/admin/bookings/monthly")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<PageResponse<AppointmentResponse>>> monthlySchedule(
+            @RequestParam(required = false) Long doctorId, @RequestParam(required = false) AppointmentStatus status,
+            @RequestParam LocalDate from, @RequestParam LocalDate to, Pageable pageable) {
+
+        return ResponseEntity
+                .ok(ApiResponse.success(appointmentService.getMonthlySchedule(doctorId, status, from, to, pageable)));
+    }
+
+    @GetMapping("/admin/bookings/search")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<PageResponse<AppointmentResponse>>> searchBookings(
+            @RequestParam(required = false) String bookingCode, @RequestParam(required = false) Long doctorId,
+            @RequestParam(required = false) Long patientId, @RequestParam(required = false) AppointmentStatus status,
+            @RequestParam(required = false) LocalDate from, @RequestParam(required = false) LocalDate to,
+            Pageable pageable) {
+
+        return ResponseEntity.ok(ApiResponse
+                .success(appointmentService.searchAdminBookings(bookingCode, doctorId, patientId, status, from, to,
+                        pageable)));
     }
 }

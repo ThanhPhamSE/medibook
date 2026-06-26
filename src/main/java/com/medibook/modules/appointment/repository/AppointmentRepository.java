@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,7 +17,7 @@ import com.medibook.modules.appointment.entity.Appointment;
 
 import jakarta.persistence.LockModeType;
 
-public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
+public interface AppointmentRepository extends JpaRepository<Appointment, Long>, JpaSpecificationExecutor<Appointment> {
 
     boolean existsByDoctorIdAndStartDatetimeAndDeletedAtIsNull(Long doctorId, LocalDateTime strarDateTime);
 
@@ -29,6 +30,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     Page<Appointment> findByDoctorIdAndDeletedAtIsNull(Long doctorId, Pageable pageable);
 
     Optional<Appointment> findByIdAndDeletedAtIsNull(Long id);
+
+    Page<Appointment> findByDeletedAtIsNull(Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
@@ -115,4 +118,5 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             """)
     Page<Appointment> findDoctorAppointments(Long doctorId, AppointmentStatus status, LocalDateTime start,
             LocalDateTime end, Pageable pageable);
+
 }
