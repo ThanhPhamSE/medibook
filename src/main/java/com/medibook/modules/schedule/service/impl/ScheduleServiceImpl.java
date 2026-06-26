@@ -16,7 +16,9 @@ import com.medibook.modules.schedule.business.ScheduleAvailabilityChecker;
 import com.medibook.modules.schedule.business.SlotGenerator;
 import com.medibook.modules.schedule.dto.request.SlotGenerateRequest;
 import com.medibook.modules.schedule.dto.request.TimeOffRequest;
+import com.medibook.modules.schedule.dto.request.TimeOffUpdateRequest;
 import com.medibook.modules.schedule.dto.request.WorkingPatternRequest;
+import com.medibook.modules.schedule.dto.request.WorkingPatternUpdateRequest;
 import com.medibook.modules.schedule.dto.response.DoctorScheduleResponse;
 import com.medibook.modules.schedule.dto.response.SlotResponse;
 import com.medibook.modules.schedule.dto.response.TimeOffResponse;
@@ -72,6 +74,29 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
+    public WorkingPatternResponse updateWorkingPattern(Long id, WorkingPatternUpdateRequest request) {
+
+        DoctorWorkingPattern pattern = doctorWorkingPatternRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Working pattern not found"));
+
+        workingPatternValidator.validateUpdate(pattern, request);
+
+        if (appointmentSchedulePort.hasFutureAppointments(pattern.getDoctor().getId(), LocalDateTime.now())) {
+            throw new BadRequestException("Cannot update working pattern because future appointments exist");
+        }
+
+        pattern.setDayOfWeek(request.getDayOfWeek());
+        pattern.setStartTime(request.getStartTime());
+        pattern.setEndTime(request.getEndTime());
+        pattern.setSlotDuration(request.getSlotDuration());
+        pattern.setBufferDuration(request.getBufferDuration());
+
+        doctorWorkingPatternRepository.save(pattern);
+
+        return scheduleMapper.toResponse(pattern);
+    }
+
+    @Override
     public void deleteWorkingPattern(Long id) {
 
         DoctorWorkingPattern pattern = doctorWorkingPatternRepository.findByIdAndDeletedAtIsNull(id)
@@ -108,6 +133,26 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         return scheduleMapper.toResponse(timeOff);
 
+    }
+
+    @Override
+    public TimeOffResponse updateTimeOff(Long id, TimeOffUpdateRequest request) {
+
+        DoctorTimeOff timeOff = doctorTimeOffRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Time off not found"));
+
+        LocalDateTime now = LocalDateTime.now();
+        if (timeOff.getStartDatetime().isBefore(now) && timeOff.getEndDatetime().isAfter(now)) {
+            throw new BadRequestException("Cannot update ongoing time off");
+        }
+
+        timeOff.setStartDatetime(request.getStartDatetime());
+        timeOff.setEndDatetime(request.getEndDatetime());
+        timeOff.setReason(request.getReason());
+
+        doctorTimeOffRepository.save(timeOff);
+
+        return scheduleMapper.toResponse(timeOff);
     }
 
     @Override

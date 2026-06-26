@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.*;
 import com.medibook.common.response.ApiResponse;
 import com.medibook.modules.schedule.dto.request.SlotGenerateRequest;
 import com.medibook.modules.schedule.dto.request.TimeOffRequest;
+import com.medibook.modules.schedule.dto.request.TimeOffUpdateRequest;
 import com.medibook.modules.schedule.dto.request.WorkingPatternRequest;
+import com.medibook.modules.schedule.dto.request.WorkingPatternUpdateRequest;
 import com.medibook.modules.schedule.dto.response.DoctorScheduleResponse;
 import com.medibook.modules.schedule.dto.response.SlotResponse;
 import com.medibook.modules.schedule.dto.response.TimeOffResponse;
@@ -36,6 +38,13 @@ public class ScheduleController {
                 .body(ApiResponse.success(scheduleService.createWorkingPattern(request)));
     }
 
+    @PutMapping("/working-patterns/{id}")
+    public ResponseEntity<ApiResponse<WorkingPatternResponse>> updateWorkingPattern(@PathVariable Long id,
+            @Valid @RequestBody WorkingPatternUpdateRequest request) {
+
+        return ResponseEntity.ok(ApiResponse.success(scheduleService.updateWorkingPattern(id, request)));
+    }
+
     @DeleteMapping("/working-patterns/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteWorkingPattern(@PathVariable Long id) {
 
@@ -49,6 +58,13 @@ public class ScheduleController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(scheduleService.createTimeOff(request)));
+    }
+
+    @PutMapping("/time-offs/{id}")
+    public ResponseEntity<ApiResponse<TimeOffResponse>> updateTimeOff(@PathVariable Long id,
+            @Valid @RequestBody TimeOffUpdateRequest request) {
+
+        return ResponseEntity.ok(ApiResponse.success(scheduleService.updateTimeOff(id, request)));
     }
 
     @DeleteMapping("/time-offs/{id}")

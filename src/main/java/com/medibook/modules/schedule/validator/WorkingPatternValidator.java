@@ -6,6 +6,8 @@ import org.springframework.stereotype.Component;
 
 import com.medibook.common.exception.BadRequestException;
 import com.medibook.modules.schedule.dto.request.WorkingPatternRequest;
+import com.medibook.modules.schedule.dto.request.WorkingPatternUpdateRequest;
+import com.medibook.modules.schedule.entity.DoctorWorkingPattern;
 
 @Component
 public class WorkingPatternValidator {
@@ -40,4 +42,14 @@ public class WorkingPatternValidator {
         }
     }
 
+    public void validateUpdate(DoctorWorkingPattern pattern, WorkingPatternUpdateRequest request) {
+
+        if (request.getStartTime().isAfter(request.getEndTime())) {
+            throw new BadRequestException("Start time must be before end time");
+        }
+
+        if (request.getSlotDuration() <= 0) {
+            throw new BadRequestException("Slot duration must be > 0");
+        }
+    }
 }
