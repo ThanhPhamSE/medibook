@@ -37,4 +37,6 @@ public interface AppointmentService {
             Pageable pageable);
 
     AppointmentResponse rescheduleAppointment(Long appointmentId, AppointmentRescheduleRequest request);
+
+    Appointment getAppointmentEntity(Long id);
 }

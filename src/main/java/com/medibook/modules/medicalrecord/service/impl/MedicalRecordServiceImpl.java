@@ -7,9 +7,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.medibook.common.constant.RoleConstants;
 import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.modules.appointment.entity.Appointment;
 import com.medibook.modules.appointment.repository.AppointmentRepository;
+import com.medibook.modules.appointment.service.AppointmentService;
 import com.medibook.modules.medicalrecord.dto.request.MedicalRecordCreateRequest;
 import com.medibook.modules.medicalrecord.dto.request.MedicalRecordUpdateRequest;
 import com.medibook.modules.medicalrecord.dto.response.MedicalRecordResponse;
@@ -34,17 +36,17 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     private final MedicalRecordValidator validator;
     private final MedicalRecordSecurityValidator securityValidator;
 
-    private final AppointmentRepository appointmentRepository;
+    private final AppointmentService appointmentService;
 
     private final UserService userService;
 
     @Override
     public MedicalRecordResponse create(MedicalRecordCreateRequest request) {
 
-        Appointment appointment = appointmentRepository.findById(request.getAppointmentId())
-                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
+        Appointment appointment = appointmentService.getAppointmentEntity(request.getAppointmentId());
 
-        validator.validateCreate(appointment);
+        validator.validateCreate(appointment.getId(), appointment.getStatus(),
+                medicalRecordRepository.existsByAppointmentId(appointment.getId()));
 
         User user = userService.getCurrentUser();
 
@@ -93,7 +95,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
 
         User currentUser = userService.getCurrentUser();
 
-        boolean isAdmin = currentUser.getRole().getName().equals("ADMIN");
+        boolean isAdmin = RoleConstants.ADMIN.equals(currentUser.getRole().getName());
 
         securityValidator.validateViewPermission(medicalRecord, currentUser, isAdmin);
 

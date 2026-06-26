@@ -4,8 +4,6 @@ import org.springframework.stereotype.Component;
 
 import com.medibook.common.enums.AppointmentStatus;
 import com.medibook.common.exception.BadRequestException;
-import com.medibook.modules.appointment.entity.Appointment;
-import com.medibook.modules.medicalrecord.repository.MedicalRecordRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -13,15 +11,13 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MedicalRecordValidator {
 
-    private final MedicalRecordRepository medicalRecordRepository;
+    public void validateCreate(Long appointmentId, AppointmentStatus status, boolean exists) {
 
-    public void validateCreate(Appointment appointment) {
-
-        if (appointment.getStatus() != AppointmentStatus.COMPLETED) {
+        if (status != AppointmentStatus.COMPLETED) {
             throw new BadRequestException("Medical record can only be created for completed appointment");
         }
 
-        if (medicalRecordRepository.existsByAppointmentId(appointment.getId())) {
+        if (exists) {
             throw new BadRequestException("Medical record already exists");
         }
     }

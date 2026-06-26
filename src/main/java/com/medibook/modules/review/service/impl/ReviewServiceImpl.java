@@ -11,6 +11,7 @@ import com.medibook.common.exception.ForbiddenException;
 import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.modules.appointment.entity.Appointment;
 import com.medibook.modules.appointment.repository.AppointmentRepository;
+import com.medibook.modules.appointment.service.AppointmentService;
 import com.medibook.modules.review.dto.request.ReviewCreateRequest;
 import com.medibook.modules.review.dto.response.DoctorRatingResponse;
 import com.medibook.modules.review.dto.response.ReviewResponse;
@@ -29,14 +30,13 @@ import lombok.RequiredArgsConstructor;
 public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewRepository reviewRepository;
-    private final AppointmentRepository appointmentRepository;
+    private final AppointmentService appointmentService;
     private final ReviewMapper reviewMapper;
     private final UserService userService;
 
     @Override
     public ReviewResponse createReview(ReviewCreateRequest request) {
-        Appointment appointment = appointmentRepository.findById(request.getAppointmentId())
-                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
+        Appointment appointment = appointmentService.getAppointmentEntity(request.getAppointmentId());
 
         User currentUser = userService.getCurrentUser();
 

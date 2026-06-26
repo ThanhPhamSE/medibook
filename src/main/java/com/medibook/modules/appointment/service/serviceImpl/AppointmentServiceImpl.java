@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.medibook.common.enums.AppointmentStatus;
 import com.medibook.common.exception.BadRequestException;
+import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.modules.appointment.dto.request.AppointmentCreateRequest;
 import com.medibook.modules.appointment.dto.request.AppointmentRescheduleRequest;
 import com.medibook.modules.appointment.dto.response.AppointmentResponse;
@@ -254,6 +255,12 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointmentRepository.save(appointment);
 
         return mapper.toResponse(appointment);
+    }
+
+    @Override
+    public Appointment getAppointmentEntity(Long id) {
+        return appointmentRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
     }
 
     private String generateBookingCode() {

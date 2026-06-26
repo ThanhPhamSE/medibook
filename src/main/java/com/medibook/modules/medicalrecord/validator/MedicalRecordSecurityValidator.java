@@ -24,11 +24,10 @@ public class MedicalRecordSecurityValidator {
             return;
         }
 
-        Long patientId = medicalRecord.getAppointment().getPatient().getId();
+        Long patientUserId = medicalRecord.getAppointment().getPatient().getId();
+        Long doctorUserId = medicalRecord.getAppointment().getDoctor().getUser().getId();
 
-        Long doctorId = medicalRecord.getAppointment().getDoctor().getId();
-
-        if (!currentUser.getId().equals(patientId) && !currentUser.getId().equals(doctorId)) {
+        if (!currentUser.getId().equals(patientUserId) && !currentUser.getId().equals(doctorUserId)) {
             throw new ForbiddenException("Access denied");
         }
     }
