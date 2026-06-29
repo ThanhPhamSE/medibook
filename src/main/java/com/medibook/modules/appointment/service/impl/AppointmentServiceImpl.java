@@ -1,4 +1,4 @@
-package com.medibook.modules.appointment.service.serviceImpl;
+package com.medibook.modules.appointment.service.impl;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

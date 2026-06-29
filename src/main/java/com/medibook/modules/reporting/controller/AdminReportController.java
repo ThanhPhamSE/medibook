@@ -2,6 +2,7 @@ package com.medibook.modules.reporting.controller;
 
 import java.time.LocalDate;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.medibook.common.response.ApiResponse;
 import com.medibook.modules.reporting.dto.request.MonthlyReportRequest;
 import com.medibook.modules.reporting.dto.request.RevenueStatisticRequest;
 import com.medibook.modules.reporting.dto.response.AppointmentStatisticResponse;
@@ -31,30 +33,32 @@ public class AdminReportController {
     private final ReportService reportService;
 
     @GetMapping("/appointments/daily")
-    public AppointmentStatisticResponse daily(@RequestParam @NotNull LocalDate date) {
+    public ResponseEntity<ApiResponse<AppointmentStatisticResponse>> daily(@RequestParam @NotNull LocalDate date) {
 
-        return reportService.daily(date);
+        return ResponseEntity.ok(ApiResponse.success(reportService.daily(date)));
 
     }
 
     @GetMapping("/appointments/monthly")
-    public AppointmentStatisticResponse monthly(@Valid @ModelAttribute MonthlyReportRequest request) {
+    public ResponseEntity<ApiResponse<AppointmentStatisticResponse>> monthly(
 
-        return reportService.monthly(request.getYear(), request.getMonth());
+            @Valid @ModelAttribute MonthlyReportRequest request) {
 
+        return ResponseEntity.ok(ApiResponse.success(reportService.monthly(request.getYear(), request.getMonth())));
     }
 
     @GetMapping("/revenue")
-    public RevenueStatisticResponse revenue(@Valid @ModelAttribute RevenueStatisticRequest request) {
+    public ResponseEntity<ApiResponse<RevenueStatisticResponse>> revenue(
+            @Valid @ModelAttribute RevenueStatisticRequest request) {
 
-        return reportService.revenue(request.getFrom(), request.getTo());
+        return ResponseEntity.ok(ApiResponse.success(reportService.revenue(request.getFrom(), request.getTo())));
 
     }
 
     @GetMapping("/doctors/{doctorId}")
-    public DoctorPerformanceResponse doctor(@PathVariable @Positive Long doctorId) {
+    public ResponseEntity<ApiResponse<DoctorPerformanceResponse>> doctor(@PathVariable @Positive Long doctorId) {
 
-        return reportService.doctor(doctorId);
+        return ResponseEntity.ok(ApiResponse.success(reportService.doctor(doctorId)));
 
     }
 
