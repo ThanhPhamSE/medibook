@@ -10,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.medibook.common.constant.RoleConstants;
 import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.modules.appointment.entity.Appointment;
-import com.medibook.modules.appointment.repository.AppointmentRepository;
 import com.medibook.modules.appointment.service.AppointmentService;
 import com.medibook.modules.medicalrecord.dto.request.MedicalRecordCreateRequest;
 import com.medibook.modules.medicalrecord.dto.request.MedicalRecordUpdateRequest;
