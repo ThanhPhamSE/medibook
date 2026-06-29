@@ -5,6 +5,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.modules.user.dto.internal.CurrentUserDto;
+import com.medibook.modules.user.dto.internal.CurrentUserResponse;
 import com.medibook.modules.user.entity.Role;
 import com.medibook.modules.user.entity.User;
 import com.medibook.modules.user.facade.UserFacade;
@@ -48,5 +49,13 @@ public class UserFacadeImpl implements UserFacade {
         User user = userService.getCurrentUser();
 
         return CurrentUserDto.builder().id(user.getId()).role(user.getRole().getName()).build();
+    }
+
+    @Override
+    public CurrentUserResponse getCurrentUserAndName() {
+
+        User user = userService.getCurrentUser();
+
+        return CurrentUserResponse.builder().id(user.getId()).fullName(user.getFullName()).build();
     }
 }

@@ -1,6 +1,7 @@
 package com.medibook.modules.user.facade;
 
 import com.medibook.modules.user.dto.internal.CurrentUserDto;
+import com.medibook.modules.user.dto.internal.CurrentUserResponse;
 import com.medibook.modules.user.entity.User;
 
 public interface UserFacade {
@@ -10,5 +11,7 @@ public interface UserFacade {
     void upgradeToDoctor(Long userId);
 
     CurrentUserDto getCurrentUser();
+
+    CurrentUserResponse getCurrentUserAndName();
 
 }
