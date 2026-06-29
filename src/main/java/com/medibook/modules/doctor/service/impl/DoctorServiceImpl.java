@@ -201,5 +201,10 @@ public class DoctorServiceImpl implements DoctorService {
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found"));
     }
 
+    @Override
+    public boolean exists(Long doctorId) {
 
+        return doctorRepository.existsById(doctorId);
+
+    }
 }

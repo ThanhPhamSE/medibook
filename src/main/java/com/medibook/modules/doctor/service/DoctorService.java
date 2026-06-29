@@ -28,4 +28,6 @@ public interface DoctorService {
     Doctor getDoctorEntityById(Long id);
 
     Doctor getDoctorByUserId(Long userId);
+
+    boolean exists(Long doctorId);
 }

@@ -1,5 +1,6 @@
 package com.medibook.modules.appointment.repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -119,4 +120,28 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long>,
     Page<Appointment> findDoctorAppointments(Long doctorId, AppointmentStatus status, LocalDateTime start,
             LocalDateTime end, Pageable pageable);
 
+    long countByDeletedAtIsNullAndStartDatetimeBetween(LocalDateTime from, LocalDateTime to);
+
+    long countByDeletedAtIsNullAndStatusAndStartDatetimeBetween(AppointmentStatus status, LocalDateTime from,
+            LocalDateTime to);
+
+    long countByDeletedAtIsNullAndDoctorIdAndStatus(Long doctorId, AppointmentStatus status);
+
+    @Query("""
+            SELECT COALESCE(SUM(a.consultationFee),0)
+            FROM Appointment a
+            WHERE a.deletedAt IS NULL
+            AND a.status='COMPLETED'
+            AND a.startDatetime BETWEEN :from AND :to
+            """)
+    BigDecimal sumRevenue(LocalDateTime from, LocalDateTime to);
+
+    @Query("""
+            SELECT COALESCE(SUM(a.consultationFee),0)
+            FROM Appointment a
+            WHERE a.deletedAt IS NULL
+            AND a.status='COMPLETED'
+            AND a.doctor.id=:doctorId
+            """)
+    BigDecimal sumDoctorRevenue(Long doctorId);
 }
