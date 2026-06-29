@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.medibook.common.constant.RoleConstants;
 import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.modules.appointment.entity.Appointment;
-import com.medibook.modules.appointment.service.AppointmentService;
+import com.medibook.modules.appointment.facade.AppointmentFacade;
 import com.medibook.modules.medicalrecord.dto.request.MedicalRecordCreateRequest;
 import com.medibook.modules.medicalrecord.dto.request.MedicalRecordUpdateRequest;
 import com.medibook.modules.medicalrecord.dto.response.MedicalRecordResponse;
@@ -20,8 +20,8 @@ import com.medibook.modules.medicalrecord.repository.MedicalRecordRepository;
 import com.medibook.modules.medicalrecord.service.MedicalRecordService;
 import com.medibook.modules.medicalrecord.validator.MedicalRecordSecurityValidator;
 import com.medibook.modules.medicalrecord.validator.MedicalRecordValidator;
-import com.medibook.modules.user.entity.User;
-import com.medibook.modules.user.service.UserService;
+import com.medibook.modules.user.dto.internal.CurrentUserDto;
+import com.medibook.modules.user.facade.UserFacade;
 
 import lombok.RequiredArgsConstructor;
 
@@ -35,21 +35,23 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     private final MedicalRecordValidator validator;
     private final MedicalRecordSecurityValidator securityValidator;
 
-    private final AppointmentService appointmentService;
+    private final AppointmentFacade appointmentFacade;
 
-    private final UserService userService;
+    private final UserFacade userFacade;
 
     @Override
     public MedicalRecordResponse create(MedicalRecordCreateRequest request) {
 
-        Appointment appointment = appointmentService.getAppointmentEntity(request.getAppointmentId());
+        Appointment appointment = appointmentFacade.getAppointmentEntity(request.getAppointmentId());
 
         validator.validateCreate(appointment.getId(), appointment.getStatus(),
                 medicalRecordRepository.existsByAppointmentId(appointment.getId()));
 
-        User user = userService.getCurrentUser();
+        CurrentUserDto currentUser = userFacade.getCurrentUser();
 
-        securityValidator.validateDoctorOwnership(appointment, user);
+        Long doctorUserId = appointment.getDoctor().getUser().getId();
+
+        securityValidator.validateDoctorOwnership(doctorUserId, currentUser.getId());
 
         MedicalRecord medicalRecord = new MedicalRecord();
 
@@ -72,9 +74,11 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         MedicalRecord medicalRecord = medicalRecordRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Medical record not found"));
 
-        User user = userService.getCurrentUser();
+        CurrentUserDto currentUser = userFacade.getCurrentUser();
 
-        securityValidator.validateDoctorOwnership(medicalRecord.getAppointment(), user);
+        Long doctorUserId = medicalRecord.getAppointment().getDoctor().getUser().getId();
+
+        securityValidator.validateDoctorOwnership(doctorUserId, currentUser.getId());
 
         medicalRecord.setDiagnosis(request.getDiagnosis());
         medicalRecord.setPrescription(request.getPrescription());
@@ -92,11 +96,15 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         MedicalRecord medicalRecord = medicalRecordRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Medical record not found"));
 
-        User currentUser = userService.getCurrentUser();
+        CurrentUserDto currentUser = userFacade.getCurrentUser();
 
-        boolean isAdmin = RoleConstants.ADMIN.equals(currentUser.getRole().getName());
+        boolean isAdmin = RoleConstants.ADMIN.equals(currentUser.getRole());
 
-        securityValidator.validateViewPermission(medicalRecord, currentUser, isAdmin);
+        securityValidator.validateViewPermission(
+                medicalRecord.getAppointment().getPatient().getId(),
+                medicalRecord.getAppointment().getDoctor().getUser().getId(),
+                currentUser.getId(),
+                isAdmin);
 
         return medicalRecordMapper.toResponse(medicalRecord);
     }
@@ -105,7 +113,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     @Transactional(readOnly = true)
     public Page<MedicalRecordResponse> getMyMedicalRecords(Pageable pageable) {
 
-        Long patientId = userService.getCurrentUser().getId();
+        Long patientId = userFacade.getCurrentUser().getId();
 
         return medicalRecordRepository.findByAppointmentPatientIdAndDeletedAtIsNull(patientId, pageable)
                 .map(medicalRecordMapper::toResponse);
@@ -117,9 +125,13 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         MedicalRecord medicalRecord = medicalRecordRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Medical record not found"));
 
-        User currentUser = userService.getCurrentUser();
+        CurrentUserDto currentUser = userFacade.getCurrentUser();
 
-        securityValidator.validateDoctorOwnership(medicalRecord.getAppointment(), currentUser);
+        Long doctorUserId = medicalRecord.getAppointment().getDoctor().getUser().getId();
+
+        securityValidator.validateDoctorOwnership(
+                doctorUserId,
+                currentUser.getId());
 
         medicalRecord.setDeletedAt(LocalDateTime.now());
 
@@ -130,7 +142,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     @Transactional(readOnly = true)
     public Page<MedicalRecordResponse> getDoctorMedicalRecords(Pageable pageable) {
 
-        Long doctorUserId = userService.getCurrentUser().getId();
+        Long doctorUserId = userFacade.getCurrentUser().getId();
 
         return medicalRecordRepository.findByAppointmentDoctorUserIdAndDeletedAtIsNull(doctorUserId, pageable)
                 .map(medicalRecordMapper::toResponse);
