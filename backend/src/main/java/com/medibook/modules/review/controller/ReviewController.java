@@ -2,7 +2,9 @@ package com.medibook.modules.review.controller;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/v1/reviews")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class ReviewController {
 
     private final ReviewService reviewService;
@@ -29,7 +32,8 @@ public class ReviewController {
     @PostMapping
     public ResponseEntity<ApiResponse<ReviewResponse>> createReview(@Valid @RequestBody ReviewCreateRequest request) {
 
-        return ResponseEntity.ok(ApiResponse.success(reviewService.createReview(request)));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(reviewService.createReview(request)));
     }
 
     @GetMapping("/doctor/{doctorId}")

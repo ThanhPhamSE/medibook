@@ -23,7 +23,6 @@ import com.medibook.modules.user.facade.UserFacade;
 import lombok.RequiredArgsConstructor;
 
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class ReviewServiceImpl implements ReviewService {
 
@@ -33,7 +32,16 @@ public class ReviewServiceImpl implements ReviewService {
     private final UserFacade userFacade;
 
     @Override
+    @Transactional
     public ReviewResponse createReview(ReviewCreateRequest request) {
+        if (request.getAppointmentId() == null) {
+            throw new BadRequestException("Appointment id is required");
+        }
+
+        if (request.getRating() == null || request.getRating() < 1 || request.getRating() > 5) {
+            throw new BadRequestException("Rating must be between 1 and 5");
+        }
+
         AppointmentReviewInfoResponse appointment = appointmentFacade.getReviewInfo(
                 request.getAppointmentId());
 
@@ -49,11 +57,9 @@ public class ReviewServiceImpl implements ReviewService {
         if (reviewRepository.existsByAppointmentId(appointment.getAppointmentId())) {
             throw new BadRequestException("Appointment already reviewed");
         }
-        Review review = new Review();
 
+        Review review = reviewMapper.toEntity(request);
         review.setAppointment(appointmentFacade.getAppointmentEntity(appointment.getAppointmentId()));
-        review.setRating(request.getRating());
-        review.setComment(request.getComment());
 
         reviewRepository.save(review);
 
@@ -61,11 +67,13 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ReviewResponse> getDoctorReviews(Long doctorId, Pageable pageable) {
         return reviewRepository.findByAppointmentDoctorId(doctorId, pageable).map(reviewMapper::toResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public DoctorRatingResponse getDoctorRating(
             Long doctorId) {
         Double average = reviewRepository.getAverageRating(doctorId);
