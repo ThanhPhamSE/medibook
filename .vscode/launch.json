@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-MedibookApplication<medibook>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.medibook.MedibookApplication",
+            "projectName": "medibook",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
