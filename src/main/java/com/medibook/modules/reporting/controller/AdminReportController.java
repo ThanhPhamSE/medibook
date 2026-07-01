@@ -25,7 +25,7 @@ import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/admin/reports")
+@RequestMapping("/api/v1/admin/reports")
 @RequiredArgsConstructor
 @Validated
 public class AdminReportController {

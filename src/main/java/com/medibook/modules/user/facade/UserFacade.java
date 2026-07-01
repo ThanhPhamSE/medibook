@@ -14,4 +14,6 @@ public interface UserFacade {
 
     CurrentUserResponse getCurrentUserAndName();
 
+    User getCurrentUserEntity();
+
 }

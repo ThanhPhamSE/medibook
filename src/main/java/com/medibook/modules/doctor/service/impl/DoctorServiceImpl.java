@@ -103,21 +103,37 @@ public class DoctorServiceImpl implements DoctorService {
 
         validator.validateSearchRequest(request);
 
-        Boolean active = request.getActive();
-        if (active == null) {
-            active = true;
+        Specification<Doctor> spec = DoctorSpecification.isNotDeleted();
+
+        if (request.getKeyword() != null && !request.getKeyword().isBlank()) {
+            spec = spec.and(DoctorSpecification.hasKeyword(request.getKeyword()));
         }
 
-        Specification<Doctor> spec = DoctorSpecification.base()
-                .and(DoctorSpecification.isNotDeleted())
-                .and(DoctorSpecification.hasKeyword(request.getKeyword()))
-                .and(DoctorSpecification.hasSpecialty(request.getSpecialtyId()))
-                .and(DoctorSpecification.hasMinExperience(request.getMinExperience()))
-                .and(DoctorSpecification.hasMaxExperience(request.getMaxExperience()))
-                .and(DoctorSpecification.hasMinFee(request.getMinFee()))
-                .and(DoctorSpecification.hasMaxFee(request.getMaxFee()))
-                .and(DoctorSpecification.hasMinRating(request.getMinRating()))
-                .and(DoctorSpecification.hasActiveStatus(active));
+        if (request.getSpecialtyId() != null) {
+            spec = spec.and(DoctorSpecification.hasSpecialty(request.getSpecialtyId()));
+        }
+
+        if (request.getMinExperience() != null) {
+            spec = spec.and(DoctorSpecification.hasMinExperience(request.getMinExperience()));
+        }
+
+        if (request.getMaxExperience() != null) {
+            spec = spec.and(DoctorSpecification.hasMaxExperience(request.getMaxExperience()));
+        }
+
+        if (request.getMinFee() != null) {
+            spec = spec.and(DoctorSpecification.hasMinFee(request.getMinFee()));
+        }
+
+        if (request.getMaxFee() != null) {
+            spec = spec.and(DoctorSpecification.hasMaxFee(request.getMaxFee()));
+        }
+
+        if (request.getMinRating() != null) {
+            spec = spec.and(DoctorSpecification.hasMinRating(request.getMinRating()));
+        }
+
+        spec = spec.and(DoctorSpecification.hasActiveStatus(true));
 
         return PageMapper.from(doctorRepository.findAll(spec, pageable).map(doctorMapper::toSummaryResponse));
     }

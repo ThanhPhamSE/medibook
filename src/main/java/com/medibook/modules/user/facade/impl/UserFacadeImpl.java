@@ -58,4 +58,9 @@ public class UserFacadeImpl implements UserFacade {
 
         return CurrentUserResponse.builder().id(user.getId()).fullName(user.getFullName()).build();
     }
+
+    @Override
+    public User getCurrentUserEntity() {
+        return userService.getCurrentUser();
+    }
 }

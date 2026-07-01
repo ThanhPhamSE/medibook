@@ -9,9 +9,7 @@ import com.medibook.common.enums.AppointmentStatus;
 import com.medibook.common.exception.BadRequestException;
 import com.medibook.common.exception.ForbiddenException;
 import com.medibook.modules.appointment.dto.internal.AppointmentReviewInfoResponse;
-import com.medibook.modules.appointment.entity.Appointment;
 import com.medibook.modules.appointment.facade.AppointmentFacade;
-import com.medibook.modules.appointment.service.AppointmentService;
 import com.medibook.modules.review.dto.request.ReviewCreateRequest;
 import com.medibook.modules.review.dto.response.DoctorRatingResponse;
 import com.medibook.modules.review.dto.response.ReviewResponse;
@@ -20,9 +18,7 @@ import com.medibook.modules.review.mapper.ReviewMapper;
 import com.medibook.modules.review.repository.ReviewRepository;
 import com.medibook.modules.review.service.ReviewService;
 import com.medibook.modules.user.dto.internal.CurrentUserResponse;
-import com.medibook.modules.user.entity.User;
 import com.medibook.modules.user.facade.UserFacade;
-import com.medibook.modules.user.service.UserService;
 
 import lombok.RequiredArgsConstructor;
 

@@ -9,24 +9,11 @@ import com.medibook.modules.specialty.entity.Specialty;
 import com.medibook.modules.user.entity.User;
 
 import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Root;
 
 public final class DoctorSpecification {
 
     private DoctorSpecification() {
-    }
-
-    public static Specification<Doctor> base() {
-        return (root, query, cb) -> {
-            if (query != null && query.getResultType() != Long.class && query.getResultType() != long.class) {
-
-                root.fetch("user", JoinType.LEFT);
-                root.fetch("specialty", JoinType.LEFT);
-
-                query.distinct(true);
-            }
-            return cb.conjunction();
-        };
     }
 
     public static Specification<Doctor> isNotDeleted() {
@@ -34,13 +21,10 @@ public final class DoctorSpecification {
     }
 
     public static Specification<Doctor> hasKeyword(String keyword) {
+
         return (root, query, cb) -> {
 
-            if (keyword == null || keyword.isBlank()) {
-                return cb.conjunction();
-            }
-
-            Join<Doctor, User> user = root.join("user", JoinType.LEFT);
+            Join<Doctor, User> user = getUserJoin(root);
 
             return cb.like(
                     cb.lower(user.get("fullName")),
@@ -49,15 +33,14 @@ public final class DoctorSpecification {
     }
 
     public static Specification<Doctor> hasSpecialty(Long specialtyId) {
+
         return (root, query, cb) -> {
 
-            if (specialtyId == null) {
-                return cb.conjunction();
-            }
+            Join<Doctor, Specialty> specialty = getSpecialtyJoin(root);
 
-            Join<Doctor, Specialty> spec = root.join("specialty", JoinType.LEFT);
-
-            return cb.equal(spec.get("id"), specialtyId);
+            return cb.equal(
+                    specialty.get("id"),
+                    specialtyId);
         };
     }
 
@@ -72,8 +55,10 @@ public final class DoctorSpecification {
     }
 
     public static Specification<Doctor> hasMinFee(BigDecimal min) {
-        return (root, query, cb) -> min == null ? cb.conjunction()
-                : cb.greaterThanOrEqualTo(root.get("consultationFee"), min);
+
+        return (root, query, cb) -> cb.greaterThanOrEqualTo(
+                root.get("consultationFee"),
+                min);
     }
 
     public static Specification<Doctor> hasMaxFee(BigDecimal max) {
@@ -92,9 +77,35 @@ public final class DoctorSpecification {
 
             boolean status = (active == null) ? true : active;
 
-            Join<Doctor, User> user = root.join("user", JoinType.LEFT);
+            Join<Doctor, User> user = root.join("user");
 
             return cb.equal(user.get("isActive"), status);
         };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Join<Doctor, User> getUserJoin(Root<Doctor> root) {
+
+        for (Join<Doctor, ?> join : root.getJoins()) {
+
+            if ("user".equals(join.getAttribute().getName())) {
+                return (Join<Doctor, User>) join;
+            }
+        }
+
+        return root.join("user");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Join<Doctor, Specialty> getSpecialtyJoin(Root<Doctor> root) {
+
+        for (Join<Doctor, ?> join : root.getJoins()) {
+
+            if ("specialty".equals(join.getAttribute().getName())) {
+                return (Join<Doctor, Specialty>) join;
+            }
+        }
+
+        return root.join("specialty");
     }
 }

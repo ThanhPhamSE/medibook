@@ -7,7 +7,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
-import com.medibook.modules.appointment.entity.Appointment;
+import com.medibook.modules.appointment.dto.response.BookedSlotResponse;
 import com.medibook.modules.appointment.port.AppointmentSchedulePort;
 import com.medibook.modules.appointment.repository.AppointmentRepository;
 import com.medibook.modules.appointment.service.AppointmentService;
@@ -29,7 +29,9 @@ public class AppointmentScheduleAdapter implements AppointmentSchedulePort {
     @Override
     public Set<LocalDateTime> getBookedSlots(Long doctorId, LocalDate date) {
 
-        return appointmentService.getBookedAppointmentsByDate(doctorId, date).stream()
-                .map(Appointment::getStartDatetime).collect(Collectors.toSet());
+        return appointmentService.getBookedAppointmentsByDate(doctorId, date)
+                .stream()
+                .map(BookedSlotResponse::getStartDatetime)
+                .collect(Collectors.toSet());
     }
 }

@@ -15,7 +15,7 @@ import com.medibook.modules.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/admin/users")
+@RequestMapping("/api/v1/admin/users")
 @RequiredArgsConstructor
 public class AdminUserController {
 

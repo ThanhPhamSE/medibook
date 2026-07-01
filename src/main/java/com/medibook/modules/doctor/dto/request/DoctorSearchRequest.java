@@ -31,6 +31,4 @@ public class DoctorSearchRequest {
     @DecimalMin(value = "0.0", inclusive = true, message = "Minimum rating cannot be negative")
     private BigDecimal minRating;
 
-    private Boolean active;
-
 }

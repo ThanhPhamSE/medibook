@@ -2,8 +2,10 @@ package com.medibook.modules.notification.service.impl;
 
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import com.medibook.modules.appointment.entity.Appointment;
 import com.medibook.modules.notification.service.EmailService;
 
 import lombok.RequiredArgsConstructor;
@@ -64,6 +66,62 @@ public class EmailServiceImpl implements EmailService {
 
                 This link expires in 15 minutes.
                 """.formatted(verifyUrl));
+
+        mailSender.send(message);
+    }
+
+    @Override
+    @Async
+    public void sendAppointmentCreatedEmail(Appointment appointment) {
+
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setTo(appointment.getPatient().getEmail());
+
+        message.setSubject("Appointment Confirmation");
+
+        message.setText("""
+                Hello %s,
+                Your appointment has been booking successfully.
+
+                Booking code: %s
+
+                Doctor: %s
+
+                Time: %s
+
+                Thank you for using MediBook.
+                """.formatted(appointment.getPatient().getFullName(), appointment.getBookingCode(),
+                appointment.getDoctor().getUser().getFullName(), appointment.getStartDatetime()));
+
+        mailSender.send(message);
+    }
+
+    @Override
+    @Async
+    public void sendAppointmentCancelledEmail(Appointment appointment) {
+
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setTo(appointment.getPatient().getEmail());
+
+        message.setSubject("Appointment Confirmation");
+
+        message.setText("""
+                Hello %s,
+                Your appointment has been cancelled.
+
+                Booking code: %s
+
+                Doctor: %s
+
+                Time: %s
+
+                Please book another appointment if needed
+
+                Medibook.
+                """.formatted(appointment.getPatient().getFullName(), appointment.getBookingCode(),
+                appointment.getDoctor().getUser().getFullName(), appointment.getStartDatetime()));
 
         mailSender.send(message);
     }
