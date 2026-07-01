@@ -3,6 +3,7 @@ package com.medibook.common.exception;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,7 @@ import com.medibook.common.response.ApiResponse;
 import jakarta.validation.ConstraintViolationException;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     // Handle Validation DTO
@@ -56,26 +58,15 @@ public class GlobalExceptionHandler {
     }
 
     // Handle all other exception
-    // @ExceptionHandler(Exception.class)
-    // public ResponseEntity<ApiResponse<String>> handleGeneralException(Exception
-    // ex) {
-
-    // ApiResponse<String> response =
-    // ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(),
-    // "Intenal server error");
-
-    // return
-    // ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    // }
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<String>> handleGeneralException(Exception ex) {
+    public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex) {
 
-        // ex.printStackTrace();
+        log.error("Unexpected server error: ", ex);
 
-        return ResponseEntity.status(500)
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(
-                        500,
-                        ex.getClass().getName() + ": " + ex.getMessage()));
+                        HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                        "Unexpected server error."));
     }
 
     @ExceptionHandler(PropertyReferenceException.class)

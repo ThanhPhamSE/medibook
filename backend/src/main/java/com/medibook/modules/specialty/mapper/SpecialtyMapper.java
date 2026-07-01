@@ -5,13 +5,14 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
+import org.mapstruct.ReportingPolicy;
 
 import com.medibook.modules.specialty.dto.request.SpecialtyCreateRequest;
 import com.medibook.modules.specialty.dto.request.SpecialtyUpdateRequest;
 import com.medibook.modules.specialty.dto.response.SpecialtyResponse;
 import com.medibook.modules.specialty.entity.Specialty;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
 public interface SpecialtyMapper {
 
     SpecialtyResponse toResponse(Specialty specialty);
