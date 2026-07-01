@@ -24,7 +24,9 @@ import com.medibook.modules.user.dto.internal.CurrentUserDto;
 import com.medibook.modules.user.facade.UserFacade;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -34,9 +36,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     private final MedicalRecordMapper medicalRecordMapper;
     private final MedicalRecordValidator validator;
     private final MedicalRecordSecurityValidator securityValidator;
-
     private final AppointmentFacade appointmentFacade;
-
     private final UserFacade userFacade;
 
     @Override
@@ -45,7 +45,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         Appointment appointment = appointmentFacade.getAppointmentEntity(request.getAppointmentId());
 
         validator.validateCreate(appointment.getId(), appointment.getStatus(),
-                medicalRecordRepository.existsByAppointmentId(appointment.getId()));
+                medicalRecordRepository.existsByAppointmentIdAndDeletedAtIsNull(appointment.getId()));
 
         CurrentUserDto currentUser = userFacade.getCurrentUser();
 
@@ -53,17 +53,12 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
 
         securityValidator.validateDoctorOwnership(doctorUserId, currentUser.getId());
 
-        MedicalRecord medicalRecord = new MedicalRecord();
-
+        MedicalRecord medicalRecord = medicalRecordMapper.toEntity(request);
         medicalRecord.setAppointment(appointment);
-
-        medicalRecord.setDiagnosis(request.getDiagnosis());
-
-        medicalRecord.setPrescription(request.getPrescription());
-
-        medicalRecord.setNote(request.getNote());
-
         medicalRecord = medicalRecordRepository.save(medicalRecord);
+
+        log.info("Medical record created: recordId={}, appointmentId={}, doctorUserId={}",
+                medicalRecord.getId(), appointment.getId(), currentUser.getId());
 
         return medicalRecordMapper.toResponse(medicalRecord);
     }
@@ -80,11 +75,9 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
 
         securityValidator.validateDoctorOwnership(doctorUserId, currentUser.getId());
 
-        medicalRecord.setDiagnosis(request.getDiagnosis());
-        medicalRecord.setPrescription(request.getPrescription());
-        medicalRecord.setNote(request.getNote());
+        medicalRecordMapper.updateEntity(request, medicalRecord);
 
-        medicalRecordRepository.save(medicalRecord);
+        log.info("Medical record updated: recordId={}, doctorUserId={}", id, currentUser.getId());
 
         return medicalRecordMapper.toResponse(medicalRecord);
     }
@@ -129,13 +122,11 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
 
         Long doctorUserId = medicalRecord.getAppointment().getDoctor().getUser().getId();
 
-        securityValidator.validateDoctorOwnership(
-                doctorUserId,
-                currentUser.getId());
+        securityValidator.validateDoctorOwnership(doctorUserId, currentUser.getId());
 
         medicalRecord.setDeletedAt(LocalDateTime.now());
 
-        medicalRecordRepository.save(medicalRecord);
+        log.info("Medical record soft-deleted: recordId={}, deletedByUserId={}", id, currentUser.getId());
     }
 
     @Override
@@ -155,3 +146,4 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         return medicalRecordRepository.findByDeletedAtIsNull(pageable).map(medicalRecordMapper::toResponse);
     }
 }
+

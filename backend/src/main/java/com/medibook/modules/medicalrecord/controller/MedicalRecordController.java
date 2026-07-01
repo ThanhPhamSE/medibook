@@ -63,11 +63,11 @@ public class MedicalRecordController {
 
     @PreAuthorize("hasRole('DOCTOR')")
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
 
         service.delete(id);
 
-        return ResponseEntity.ok(ApiResponse.success(null));
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/doctor")
