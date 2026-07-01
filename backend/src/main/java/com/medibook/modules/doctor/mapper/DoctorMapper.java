@@ -7,6 +7,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
+import org.mapstruct.ReportingPolicy;
 
 import com.medibook.modules.doctor.dto.request.CreateDoctorRequest;
 import com.medibook.modules.doctor.dto.request.UpdateDoctorRequest;
@@ -14,7 +15,7 @@ import com.medibook.modules.doctor.dto.response.DoctorResponse;
 import com.medibook.modules.doctor.dto.response.DoctorSummaryResponse;
 import com.medibook.modules.doctor.entity.Doctor;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
 public interface DoctorMapper {
 
     // CREATE

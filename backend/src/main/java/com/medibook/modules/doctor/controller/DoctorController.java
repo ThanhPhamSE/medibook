@@ -4,6 +4,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,6 +30,7 @@ public class DoctorController {
     private final DoctorService doctorService;
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<DoctorResponse>> createDoctor(@Valid @RequestBody CreateDoctorRequest request) {
 
         DoctorResponse response = doctorService.createDoctor(request);
@@ -51,6 +53,7 @@ public class DoctorController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR')")
     public ResponseEntity<ApiResponse<DoctorResponse>> updateDoctor(@PathVariable Long id,
             @Valid @RequestBody UpdateDoctorRequest request) {
 
@@ -58,6 +61,7 @@ public class DoctorController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteDoctor(@PathVariable Long id) {
 
         doctorService.deleteDoctor(id);
@@ -66,6 +70,7 @@ public class DoctorController {
     }
 
     @PostMapping("/upgrade-to-doctor")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<DoctorResponse>> upgradeToDoctor(
             @Valid @RequestBody UpgradeToDoctorRequest request) {
 
