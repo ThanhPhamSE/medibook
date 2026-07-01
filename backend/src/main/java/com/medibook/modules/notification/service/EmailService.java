@@ -1,6 +1,6 @@
 package com.medibook.modules.notification.service;
 
-import com.medibook.modules.appointment.entity.Appointment;
+import com.medibook.modules.notification.dto.AppointmentEmailData;
 
 public interface EmailService {
 
@@ -8,7 +8,8 @@ public interface EmailService {
 
     void sendVerificationEmail(String email, String token);
 
-    void sendAppointmentCreatedEmail(Appointment appointment);
+    void sendAppointmentCreatedEmail(AppointmentEmailData data);
 
-    void sendAppointmentCancelledEmail(Appointment appointment);
+    void sendAppointmentCancelledEmail(AppointmentEmailData data);
 }
+

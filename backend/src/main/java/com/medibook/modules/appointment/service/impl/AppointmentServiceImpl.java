@@ -30,6 +30,7 @@ import com.medibook.modules.appointment.specification.AppointmentSpecification;
 import com.medibook.modules.appointment.validator.AppointmentValidator;
 import com.medibook.modules.doctor.entity.Doctor;
 import com.medibook.modules.doctor.facade.DoctorFacade;
+import com.medibook.modules.notification.dto.AppointmentEmailData;
 import com.medibook.modules.notification.service.EmailService;
 import com.medibook.modules.schedule.entity.DoctorWorkingPattern;
 import com.medibook.modules.schedule.facade.ScheduleFacade;
@@ -114,7 +115,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         saveHistory(appointment, null, AppointmentStatus.PENDING, patient);
 
-        emailService.sendAppointmentCreatedEmail(appointment);
+        emailService.sendAppointmentCreatedEmail(AppointmentEmailData.from(appointment));
 
         return mapper.toResponse(appointment);
     }
@@ -187,7 +188,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         saveHistory(appointment, oldStatus, AppointmentStatus.CANCELLED, user);
 
-        emailService.sendAppointmentCancelledEmail(appointment);
+        emailService.sendAppointmentCancelledEmail(AppointmentEmailData.from(appointment));
     }
 
     @Override

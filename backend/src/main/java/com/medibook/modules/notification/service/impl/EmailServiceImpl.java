@@ -5,58 +5,64 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import com.medibook.modules.appointment.entity.Appointment;
+import com.medibook.config.AppProperties;
+import com.medibook.modules.notification.dto.AppointmentEmailData;
 import com.medibook.modules.notification.service.EmailService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
+    private final AppProperties appProperties;
 
     @Override
+    @Async("emailExecutor")
     public void sendResetPasswordEmail(String email, String resetToken) {
 
-        String resetUrl = "http://localhost:3000/reset-password?token=" + resetToken;
+        String resetUrl = appProperties.getFrontendUrl() + "/reset-password?token=" + resetToken;
 
         SimpleMailMessage message = new SimpleMailMessage();
-
         message.setTo(email);
-
         message.setSubject("MediBook Password Reset");
+        message.setText("""
+                Hello,
 
-        message.setText(
-                """
-                        Hello,
+                We received a request to reset your password.
 
-                        We received a request to reset your password.
+                Click the link below:
 
-                        Click the link below:
+                %s
 
-                        %s
+                This link will expire in 15 minutes.
 
-                        This link will expire in 15 minutes.
+                If you did not request this change,
+                please ignore this email.
 
-                        If you did not request this change,
-                        please ignore this email.
+                MediBook Team
+                """.formatted(resetUrl));
 
-                        MediBook Team
-                        """.formatted(resetUrl));
-
-        mailSender.send(message);
+        try {
+            mailSender.send(message);
+            log.info("Password reset email sent to: {}", email);
+        } catch (Exception e) {
+            log.error("Failed to send password reset email to: {}", email, e);
+        }
     }
 
     @Override
+    @Async("emailExecutor")
     public void sendVerificationEmail(String email, String token) {
 
-        String verifyUrl = "http://localhost:3000/verify-email?token=" + token;
+        String verifyUrl = appProperties.getFrontendUrl() + "/verify-email?token=" + token;
 
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(email);
         message.setSubject("Verify your account");
-
         message.setText("""
                 Welcome to MediBook!
 
@@ -67,22 +73,24 @@ public class EmailServiceImpl implements EmailService {
                 This link expires in 15 minutes.
                 """.formatted(verifyUrl));
 
-        mailSender.send(message);
+        try {
+            mailSender.send(message);
+            log.info("Verification email sent to: {}", email);
+        } catch (Exception e) {
+            log.error("Failed to send verification email to: {}", email, e);
+        }
     }
 
     @Override
-    @Async
-    public void sendAppointmentCreatedEmail(Appointment appointment) {
+    @Async("emailExecutor")
+    public void sendAppointmentCreatedEmail(AppointmentEmailData data) {
 
         SimpleMailMessage message = new SimpleMailMessage();
-
-        message.setTo(appointment.getPatient().getEmail());
-
+        message.setTo(data.patientEmail());
         message.setSubject("Appointment Confirmation");
-
         message.setText("""
                 Hello %s,
-                Your appointment has been booking successfully.
+                Your appointment has been booked successfully.
 
                 Booking code: %s
 
@@ -91,22 +99,25 @@ public class EmailServiceImpl implements EmailService {
                 Time: %s
 
                 Thank you for using MediBook.
-                """.formatted(appointment.getPatient().getFullName(), appointment.getBookingCode(),
-                appointment.getDoctor().getUser().getFullName(), appointment.getStartDatetime()));
+                """.formatted(data.patientName(), data.bookingCode(),
+                data.doctorName(), data.startDatetime()));
 
-        mailSender.send(message);
+        try {
+            mailSender.send(message);
+            log.info("Appointment created email sent: bookingCode={}, patientEmail={}",
+                    data.bookingCode(), data.patientEmail());
+        } catch (Exception e) {
+            log.error("Failed to send appointment created email: bookingCode={}", data.bookingCode(), e);
+        }
     }
 
     @Override
-    @Async
-    public void sendAppointmentCancelledEmail(Appointment appointment) {
+    @Async("emailExecutor")
+    public void sendAppointmentCancelledEmail(AppointmentEmailData data) {
 
         SimpleMailMessage message = new SimpleMailMessage();
-
-        message.setTo(appointment.getPatient().getEmail());
-
-        message.setSubject("Appointment Confirmation");
-
+        message.setTo(data.patientEmail());
+        message.setSubject("Appointment Cancellation");
         message.setText("""
                 Hello %s,
                 Your appointment has been cancelled.
@@ -117,12 +128,18 @@ public class EmailServiceImpl implements EmailService {
 
                 Time: %s
 
-                Please book another appointment if needed
+                Please book another appointment if needed.
 
-                Medibook.
-                """.formatted(appointment.getPatient().getFullName(), appointment.getBookingCode(),
-                appointment.getDoctor().getUser().getFullName(), appointment.getStartDatetime()));
+                MediBook Team.
+                """.formatted(data.patientName(), data.bookingCode(),
+                data.doctorName(), data.startDatetime()));
 
-        mailSender.send(message);
+        try {
+            mailSender.send(message);
+            log.info("Appointment cancelled email sent: bookingCode={}, patientEmail={}",
+                    data.bookingCode(), data.patientEmail());
+        } catch (Exception e) {
+            log.error("Failed to send appointment cancelled email: bookingCode={}", data.bookingCode(), e);
+        }
     }
 }
