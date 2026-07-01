@@ -3,6 +3,7 @@ package com.medibook.modules.reporting.controller;
 import java.time.LocalDate;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -28,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/v1/admin/reports")
 @RequiredArgsConstructor
 @Validated
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminReportController {
 
     private final ReportService reportService;

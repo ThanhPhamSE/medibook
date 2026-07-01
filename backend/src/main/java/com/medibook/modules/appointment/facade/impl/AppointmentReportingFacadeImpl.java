@@ -3,11 +3,13 @@ package com.medibook.modules.appointment.facade.impl;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
 
 import com.medibook.common.enums.AppointmentStatus;
 import com.medibook.modules.appointment.facade.AppointmentReportingFacade;
+import com.medibook.modules.appointment.repository.StatusCountProjection;
 import com.medibook.modules.appointment.service.AppointmentReportingService;
 
 import lombok.RequiredArgsConstructor;
@@ -48,4 +50,8 @@ public class AppointmentReportingFacadeImpl implements AppointmentReportingFacad
         return reportingService.sumRevenue(from, to);
     }
 
-}
+    @Override
+    public List<StatusCountProjection> countGroupByStatus(LocalDateTime from, LocalDateTime to) {
+        return reportingService.countGroupByStatus(from, to);
+    }
+}

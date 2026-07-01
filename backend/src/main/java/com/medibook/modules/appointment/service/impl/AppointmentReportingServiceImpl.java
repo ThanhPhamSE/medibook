@@ -3,12 +3,14 @@ package com.medibook.modules.appointment.service.impl;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.medibook.common.enums.AppointmentStatus;
 import com.medibook.modules.appointment.repository.AppointmentRepository;
+import com.medibook.modules.appointment.repository.StatusCountProjection;
 import com.medibook.modules.appointment.service.AppointmentReportingService;
 
 import lombok.RequiredArgsConstructor;
@@ -37,7 +39,7 @@ public class AppointmentReportingServiceImpl implements AppointmentReportingServ
 
     @Override
     public BigDecimal sumDoctorRevenue(Long doctorId) {
-        return appointmentRepository.sumDoctorRevenue(doctorId);
+        return appointmentRepository.sumDoctorRevenue(doctorId, AppointmentStatus.COMPLETED);
     }
 
     @Override
@@ -48,6 +50,12 @@ public class AppointmentReportingServiceImpl implements AppointmentReportingServ
 
     @Override
     public BigDecimal sumRevenue(LocalDate from, LocalDate to) {
-        return appointmentRepository.sumRevenue(from.atStartOfDay(), to.plusDays(1).atStartOfDay());
+        return appointmentRepository.sumRevenue(
+                from.atStartOfDay(), to.plusDays(1).atStartOfDay(), AppointmentStatus.COMPLETED);
+    }
+
+    @Override
+    public List<StatusCountProjection> countGroupByStatus(LocalDateTime from, LocalDateTime to) {
+        return appointmentRepository.countGroupByStatus(from, to);
     }
 }

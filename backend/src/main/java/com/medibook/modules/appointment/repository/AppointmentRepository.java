@@ -131,17 +131,30 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long>,
             SELECT COALESCE(SUM(a.consultationFee),0)
             FROM Appointment a
             WHERE a.deletedAt IS NULL
-            AND a.status='COMPLETED'
+            AND a.status = :status
             AND a.startDatetime BETWEEN :from AND :to
             """)
-    BigDecimal sumRevenue(LocalDateTime from, LocalDateTime to);
+    BigDecimal sumRevenue(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to,
+            @Param("status") AppointmentStatus status);
 
     @Query("""
             SELECT COALESCE(SUM(a.consultationFee),0)
             FROM Appointment a
             WHERE a.deletedAt IS NULL
-            AND a.status='COMPLETED'
-            AND a.doctor.id=:doctorId
+            AND a.status = :status
+            AND a.doctor.id = :doctorId
             """)
-    BigDecimal sumDoctorRevenue(Long doctorId);
+    BigDecimal sumDoctorRevenue(@Param("doctorId") Long doctorId, @Param("status") AppointmentStatus status);
+
+    @Query("""
+            SELECT a.status AS status, COUNT(a) AS cnt
+            FROM Appointment a
+            WHERE a.deletedAt IS NULL
+            AND a.startDatetime >= :from
+            AND a.startDatetime < :to
+            GROUP BY a.status
+            """)
+    List<StatusCountProjection> countGroupByStatus(@Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
 }
+
