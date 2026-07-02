@@ -3,6 +3,7 @@ package com.medibook.modules.schedule.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.medibook.common.enums.DayOfWeekEnum;
@@ -16,5 +17,6 @@ public interface DoctorWorkingPatternRepository extends JpaRepository<DoctorWork
 
     Optional<DoctorWorkingPattern> findByIdAndDeletedAtIsNull(Long id);
 
+    @EntityGraph(attributePaths = "doctor")
     List<DoctorWorkingPattern> findByDoctorIdAndDeletedAtIsNull(Long doctorId);
 }

@@ -5,11 +5,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.medibook.common.constant.RoleConstants;
 import com.medibook.common.enums.DayOfWeekEnum;
 import com.medibook.common.exception.BadRequestException;
+import com.medibook.common.exception.ForbiddenException;
 import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.modules.doctor.entity.Doctor;
 import com.medibook.modules.schedule.business.ScheduleAvailabilityChecker;
@@ -34,6 +38,7 @@ import com.medibook.modules.schedule.validator.WorkingPatternValidator;
 
 import com.medibook.modules.appointment.port.AppointmentSchedulePort;
 import com.medibook.modules.doctor.port.DoctorQueryPort;
+import com.medibook.security.util.SecurityUtils;
 
 import lombok.RequiredArgsConstructor;
 
@@ -56,6 +61,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     public WorkingPatternResponse createWorkingPattern(WorkingPatternRequest request) {
 
         workingPatternValidator.validate(request);
+        ensureScheduleAccess(request.getDoctorId());
 
         Doctor doctor = doctorQueryPort.getDoctor(request.getDoctorId());
 
@@ -79,6 +85,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         DoctorWorkingPattern pattern = doctorWorkingPatternRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Working pattern not found"));
 
+        ensureScheduleAccess(pattern);
         workingPatternValidator.validateUpdate(pattern, request);
 
         if (appointmentSchedulePort.hasFutureAppointments(pattern.getDoctor().getId(), LocalDateTime.now())) {
@@ -102,6 +109,8 @@ public class ScheduleServiceImpl implements ScheduleService {
         DoctorWorkingPattern pattern = doctorWorkingPatternRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Working pattern not found"));
 
+        ensureScheduleAccess(pattern);
+
         if (appointmentSchedulePort.hasFutureAppointments(pattern.getDoctor().getId(), LocalDateTime.now())) {
             throw new BadRequestException("Cannot delete working pattern because future appointments exist");
         }
@@ -115,6 +124,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     public TimeOffResponse createTimeOff(TimeOffRequest request) {
 
         timeOffValidator.validate(request);
+        ensureScheduleAccess(request.getDoctorId());
 
         Doctor doctor = doctorQueryPort.getDoctor(request.getDoctorId());
 
@@ -141,6 +151,8 @@ public class ScheduleServiceImpl implements ScheduleService {
         DoctorTimeOff timeOff = doctorTimeOffRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Time off not found"));
 
+        ensureScheduleAccess(timeOff);
+
         LocalDateTime now = LocalDateTime.now();
         if (timeOff.getStartDatetime().isBefore(now) && timeOff.getEndDatetime().isAfter(now)) {
             throw new BadRequestException("Cannot update ongoing time off");
@@ -160,6 +172,8 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         DoctorTimeOff doctorTimeOff = doctorTimeOffRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Time off not found"));
+
+        ensureScheduleAccess(doctorTimeOff);
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -202,6 +216,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Transactional(readOnly = true)
     public DoctorScheduleResponse getDoctorSchedule(Long doctorId) {
 
+        ensureScheduleAccess(doctorId);
         doctorQueryPort.getDoctor(doctorId);
 
         List<WorkingPatternResponse> patterns = doctorWorkingPatternRepository
@@ -212,6 +227,31 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         return DoctorScheduleResponse.builder().doctorId(doctorId).workingPartterns(patterns).timeOffs(timeOffs)
                 .build();
+    }
+
+    private void ensureScheduleAccess(Long doctorId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(authority -> RoleConstants.ADMIN.equals(authority.getAuthority().replace("ROLE_", "")));
+
+        if (isAdmin) {
+            return;
+        }
+
+        Doctor doctor = doctorQueryPort.getDoctor(doctorId);
+        if (doctor.getUser() == null || !currentUserId.equals(doctor.getUser().getId())) {
+            throw new ForbiddenException("Access denied");
+        }
+    }
+
+    private void ensureScheduleAccess(DoctorWorkingPattern pattern) {
+        ensureScheduleAccess(pattern.getDoctor().getId());
+    }
+
+    private void ensureScheduleAccess(DoctorTimeOff timeOff) {
+        ensureScheduleAccess(timeOff.getDoctor().getId());
     }
 
     private DoctorWorkingPattern loadPattern(Long doctorId, DayOfWeekEnum dayOfWeek) {
