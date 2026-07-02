@@ -10,9 +10,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import com.medibook.common.constant.RoleConstants;
 import com.medibook.common.enums.AppointmentStatus;
 import com.medibook.common.exception.BadRequestException;
+import com.medibook.common.exception.ForbiddenException;
 import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.common.response.PageResponse;
 import com.medibook.common.response.util.PageMapper;
@@ -107,17 +111,19 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setStatus(AppointmentStatus.PENDING);
         appointment.setConsultationFee(doctor.getConsultationFee());
 
+        Appointment savedAppointment;
         try {
-            appointment = appointmentRepository.save(appointment);
+            savedAppointment = appointmentRepository.save(appointment);
         } catch (DataIntegrityViolationException ex) {
             throw new BadRequestException("Slot already booked");
         }
 
-        saveHistory(appointment, null, AppointmentStatus.PENDING, patient);
+        saveHistory(savedAppointment, null, AppointmentStatus.PENDING, patient);
 
-        emailService.sendAppointmentCreatedEmail(AppointmentEmailData.from(appointment));
+        sendEmailAfterCommit(
+                () -> emailService.sendAppointmentCreatedEmail(AppointmentEmailData.from(savedAppointment)));
 
-        return mapper.toResponse(appointment);
+        return mapper.toResponse(savedAppointment);
     }
 
     @Override
@@ -127,12 +133,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         Appointment appointment = appointmentRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
 
-        User currentUser = userFacade.getCurrentUserEntity();
-
-        if (!appointment.getPatient().getId().equals(currentUser.getId())) {
-            throw new BadRequestException(
-                    "You do not have permission to access this appointment");
-        }
+        ensureAppointmentAccess(appointment);
 
         return mapper.toResponse(appointment);
     }
@@ -174,21 +175,19 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         User user = userFacade.getCurrentUserEntity();
 
-        if (!appointment.getPatient().getId().equals(user.getId())) {
-            throw new BadRequestException(
-                    "You do not have permission to access this appointment");
-        }
+        ensurePatientAccess(appointment, user);
 
         AppointmentStatus oldStatus = appointment.getStatus();
 
         appointment.setStatus(AppointmentStatus.CANCELLED);
+        appointment.setCancelledBy(user);
         appointment.setCancelledReason(reason);
 
         appointmentRepository.save(appointment);
 
         saveHistory(appointment, oldStatus, AppointmentStatus.CANCELLED, user);
 
-        emailService.sendAppointmentCancelledEmail(AppointmentEmailData.from(appointment));
+        sendEmailAfterCommit(() -> emailService.sendAppointmentCancelledEmail(AppointmentEmailData.from(appointment)));
     }
 
     @Override
@@ -211,6 +210,9 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         Appointment appointment = appointmentRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
+
+        User currentUser = userFacade.getCurrentUserEntity();
+        ensureDoctorOrAdminAccess(appointment, currentUser);
 
         AppointmentStatus current = appointment.getStatus();
 
@@ -235,6 +237,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         Appointment appointment = appointmentRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
 
+        User currentUser = userFacade.getCurrentUserEntity();
+        ensureDoctorOrAdminAccess(appointment, currentUser);
+
         if (appointment.getStatus() != AppointmentStatus.CONFIRMED) {
             throw new BadRequestException(
                     "Invalid appointment status transition");
@@ -255,6 +260,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         Appointment appointment = appointmentRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
 
+        User currentUser = userFacade.getCurrentUserEntity();
+        ensureDoctorOrAdminAccess(appointment, currentUser);
+
         if (appointment.getStatus() != AppointmentStatus.CONFIRMED) {
             throw new BadRequestException("Invalid appointment status transition");
         }
@@ -274,6 +282,7 @@ public class AppointmentServiceImpl implements AppointmentService {
             Pageable pageable) {
 
         User currentUser = userFacade.getCurrentUserEntity();
+        ensureDoctorOrAdminAccessForDoctorScope(currentUser);
 
         Doctor doctor = doctorFacade.getDoctorByUserId(currentUser.getId());
 
@@ -286,15 +295,12 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     public AppointmentResponse rescheduleAppointment(Long appointmentId, AppointmentRescheduleRequest request) {
 
-        Appointment appointment = appointmentRepository.findById(appointmentId)
+        Appointment appointment = appointmentRepository.findByIdAndDeletedAtIsNull(appointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
 
         User patient = userFacade.getCurrentUserEntity();
 
-        if (!appointment.getPatient().getId().equals(patient.getId())) {
-            throw new BadRequestException(
-                    "You do not have permission to access this appointment");
-        }
+        ensurePatientAccess(appointment, patient);
 
         if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
             throw new BadRequestException("Appointment already cancelled");
@@ -342,6 +348,95 @@ public class AppointmentServiceImpl implements AppointmentService {
     public Appointment getAppointmentEntity(Long id) {
         return appointmentRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
+    }
+
+    private void ensureAppointmentAccess(Appointment appointment) {
+        User currentUser = userFacade.getCurrentUserEntity();
+        if (currentUser == null) {
+            throw new ForbiddenException("Access denied");
+        }
+
+        if (isAdmin(currentUser)) {
+            return;
+        }
+
+        if (appointment.getDoctor() != null && appointment.getDoctor().getUser() != null
+                && currentUser.getId().equals(appointment.getDoctor().getUser().getId())) {
+            return;
+        }
+
+        if (appointment.getPatient() != null && currentUser.getId().equals(appointment.getPatient().getId())) {
+            return;
+        }
+
+        throw new ForbiddenException("Access denied");
+    }
+
+    private void ensurePatientAccess(Appointment appointment, User currentUser) {
+        if (currentUser == null) {
+            throw new ForbiddenException("Access denied");
+        }
+
+        if (isAdmin(currentUser)) {
+            return;
+        }
+
+        if (appointment.getPatient() != null && currentUser.getId().equals(appointment.getPatient().getId())) {
+            return;
+        }
+
+        throw new ForbiddenException("Access denied");
+    }
+
+    private void ensureDoctorOrAdminAccess(Appointment appointment, User currentUser) {
+        if (currentUser == null) {
+            throw new ForbiddenException("Access denied");
+        }
+
+        if (isAdmin(currentUser)) {
+            return;
+        }
+
+        if (appointment.getDoctor() != null && appointment.getDoctor().getUser() != null
+                && currentUser.getId().equals(appointment.getDoctor().getUser().getId())) {
+            return;
+        }
+
+        throw new ForbiddenException("Access denied");
+    }
+
+    private void ensureDoctorOrAdminAccessForDoctorScope(User currentUser) {
+        if (currentUser == null) {
+            throw new ForbiddenException("Access denied");
+        }
+
+        if (isAdmin(currentUser)) {
+            return;
+        }
+
+        if (currentUser.getRole() != null && RoleConstants.DOCTOR.equals(currentUser.getRole().getName())) {
+            return;
+        }
+
+        throw new ForbiddenException("Access denied");
+    }
+
+    private boolean isAdmin(User user) {
+        return user != null && user.getRole() != null
+                && RoleConstants.ADMIN.equals(user.getRole().getName());
+    }
+
+    private void sendEmailAfterCommit(Runnable action) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    action.run();
+                }
+            });
+        } else {
+            action.run();
+        }
     }
 
     private String generateBookingCode() {

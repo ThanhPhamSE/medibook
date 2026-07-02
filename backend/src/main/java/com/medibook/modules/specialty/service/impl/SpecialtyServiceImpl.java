@@ -45,7 +45,8 @@ public class SpecialtyServiceImpl implements SpecialtyService {
 
         // tồn tại active
         if (existing != null && existing.getDeletedAt() == null) {
-            log.warn("Failed to create specialty. Active specialty with name '{}' already exists (id={})", name, existing.getId());
+            log.warn("Failed to create specialty. Active specialty with name '{}' already exists (id={})", name,
+                    existing.getId());
             throw new ConflictException("Specialty already exists");
         }
 
@@ -87,14 +88,12 @@ public class SpecialtyServiceImpl implements SpecialtyService {
         Specialty conflict = specialtyRepository.findForUpdateByName(name).orElse(null);
 
         if (conflict != null && !conflict.getId().equals(id)) {
-            log.warn("Failed to update specialty. Conflict detected. Specialty with name '{}' already exists (id={})", name, conflict.getId());
+            log.warn("Failed to update specialty. Conflict detected. Specialty with name '{}' already exists (id={})",
+                    name, conflict.getId());
             throw new ConflictException("Specialty already exists");
         }
 
-        Specialty oldSnapshot = new Specialty();
-        oldSnapshot.setId(specialty.getId());
-        oldSnapshot.setName(specialty.getName());
-        oldSnapshot.setDescription(specialty.getDescription());
+        Specialty oldSnapshot = specialtyMapper.toSnapshot(specialty);
 
         specialtyMapper.updateEntity(request, specialty);
         specialty.setName(name);
@@ -166,7 +165,8 @@ public class SpecialtyServiceImpl implements SpecialtyService {
         Specialty conflict = specialtyRepository.findForUpdateByName(specialty.getName()).orElse(null);
 
         if (conflict != null && conflict.getDeletedAt() == null) {
-            log.warn("Failed to restore specialty. Active specialty with name '{}' already exists (id={})", specialty.getName(), conflict.getId());
+            log.warn("Failed to restore specialty. Active specialty with name '{}' already exists (id={})",
+                    specialty.getName(), conflict.getId());
             throw new ConflictException("Active specialty with same name exists");
         }
 

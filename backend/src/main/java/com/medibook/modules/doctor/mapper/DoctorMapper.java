@@ -11,6 +11,7 @@ import org.mapstruct.ReportingPolicy;
 
 import com.medibook.modules.doctor.dto.request.CreateDoctorRequest;
 import com.medibook.modules.doctor.dto.request.UpdateDoctorRequest;
+import com.medibook.modules.doctor.dto.request.UpgradeToDoctorRequest;
 import com.medibook.modules.doctor.dto.response.DoctorResponse;
 import com.medibook.modules.doctor.dto.response.DoctorSummaryResponse;
 import com.medibook.modules.doctor.entity.Doctor;
@@ -29,6 +30,23 @@ public interface DoctorMapper {
     @Mapping(target = "deletedAt", ignore = true)
     @Mapping(target = "version", ignore = true)
     Doctor toEntity(CreateDoctorRequest request);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "user", ignore = true)
+    @Mapping(target = "specialty", ignore = true)
+    @Mapping(target = "averageRating", ignore = true)
+    @Mapping(target = "totalReviews", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    Doctor toEntity(UpgradeToDoctorRequest request);
+
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    Doctor toSnapshot(Doctor doctor);
 
     // UPDATE
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)

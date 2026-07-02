@@ -57,7 +57,8 @@ public class DoctorServiceImpl implements DoctorService {
         User user = userFacade.getUserById(request.getUserId());
 
         if (user.getRole() == null || !RoleConstants.DOCTOR.equals(user.getRole().getName())) {
-            log.warn("Failed to create doctor profile. User does not have DOCTOR role (userId={})", request.getUserId());
+            log.warn("Failed to create doctor profile. User does not have DOCTOR role (userId={})",
+                    request.getUserId());
             throw new BadRequestException("User must have DOCTOR role");
         }
 
@@ -72,11 +73,13 @@ public class DoctorServiceImpl implements DoctorService {
         Doctor existing = doctorRepository.findByUserId(request.getUserId()).orElse(null);
         if (existing != null) {
             if (existing.getDeletedAt() == null) {
-                log.warn("Failed to create doctor profile. Active profile already exists for userId: {}", request.getUserId());
+                log.warn("Failed to create doctor profile. Active profile already exists for userId: {}",
+                        request.getUserId());
                 throw new BadRequestException("Doctor profile already exists");
             } else {
                 // Restore flow
-                log.info("Restoring soft-deleted doctor profile (id={}) for userId: {}", existing.getId(), request.getUserId());
+                log.info("Restoring soft-deleted doctor profile (id={}) for userId: {}", existing.getId(),
+                        request.getUserId());
                 existing.setDeletedAt(null);
                 existing.setSpecialty(specialty);
                 existing.setDegree(request.getDegree());
@@ -87,7 +90,8 @@ public class DoctorServiceImpl implements DoctorService {
                 Doctor saved = doctorRepository.save(existing);
                 saved = getDoctorEntityById(saved.getId());
 
-                log.info("Successfully restored soft-deleted doctor profile: id={}, userId={}", saved.getId(), request.getUserId());
+                log.info("Successfully restored soft-deleted doctor profile: id={}, userId={}", saved.getId(),
+                        request.getUserId());
                 auditService.log("RESTORE", "DOCTOR", saved.getId(), null, saved);
 
                 return doctorMapper.toResponse(saved);
@@ -131,22 +135,26 @@ public class DoctorServiceImpl implements DoctorService {
         Doctor existing = doctorRepository.findByUserId(request.getUserId()).orElse(null);
         if (existing != null) {
             if (existing.getDeletedAt() == null) {
-                log.warn("Failed to upgrade user. Active doctor profile already exists for userId: {}", request.getUserId());
+                log.warn("Failed to upgrade user. Active doctor profile already exists for userId: {}",
+                        request.getUserId());
                 throw new BadRequestException("Doctor profile already exists");
             } else {
                 // Restore flow
-                log.info("Restoring soft-deleted doctor profile (id={}) for upgraded user userId: {}", existing.getId(), request.getUserId());
+                log.info("Restoring soft-deleted doctor profile (id={}) for upgraded user userId: {}", existing.getId(),
+                        request.getUserId());
                 existing.setDeletedAt(null);
                 existing.setSpecialty(specialty);
                 existing.setDegree(request.getDegree());
                 existing.setExperienceYears(request.getExperienceYears() == null ? 0 : request.getExperienceYears());
-                existing.setConsultationFee(request.getConsultationFee() == null ? BigDecimal.ZERO : request.getConsultationFee());
+                existing.setConsultationFee(
+                        request.getConsultationFee() == null ? BigDecimal.ZERO : request.getConsultationFee());
                 existing.setBiography(request.getBiography());
 
                 Doctor saved = doctorRepository.save(existing);
                 saved = getDoctorEntityById(saved.getId());
 
-                log.info("Successfully restored soft-deleted doctor profile for upgraded user: id={}, userId={}", saved.getId(), request.getUserId());
+                log.info("Successfully restored soft-deleted doctor profile for upgraded user: id={}, userId={}",
+                        saved.getId(), request.getUserId());
                 auditService.log("RESTORE", "DOCTOR", saved.getId(), null, saved);
 
                 return doctorMapper.toResponse(saved);
@@ -157,7 +165,8 @@ public class DoctorServiceImpl implements DoctorService {
         doctor = doctorRepository.save(doctor);
         doctor = getDoctorEntityById(doctor.getId());
 
-        log.info("Successfully upgraded user and created doctor profile: id={}, userId={}", doctor.getId(), request.getUserId());
+        log.info("Successfully upgraded user and created doctor profile: id={}, userId={}", doctor.getId(),
+                request.getUserId());
         auditService.log("UPGRADE", "DOCTOR", doctor.getId(), null, doctor);
 
         return doctorMapper.toResponse(doctor);
@@ -224,11 +233,12 @@ public class DoctorServiceImpl implements DoctorService {
         // BOLA Check: Only allow updates by profile owner (Doctor themselves) or ADMIN
         CurrentUserDto currentUser = userFacade.getCurrentUser();
         if (!"ADMIN".equals(currentUser.getRole()) && !doctor.getUser().getId().equals(currentUser.getId())) {
-            log.warn("Unauthorized profile update attempt on doctor ID: {} by current user ID: {}", id, currentUser.getId());
+            log.warn("Unauthorized profile update attempt on doctor ID: {} by current user ID: {}", id,
+                    currentUser.getId());
             throw new ForbiddenException("You are not allowed to update this doctor profile");
         }
 
-        Doctor oldSnapshot = buildSnapshot(doctor);
+        Doctor oldSnapshot = doctorMapper.toSnapshot(doctor);
 
         doctorMapper.updateEntity(request, doctor);
 
@@ -252,7 +262,7 @@ public class DoctorServiceImpl implements DoctorService {
 
         Doctor doctor = getDoctor(id);
 
-        Doctor snapshot = buildSnapshot(doctor);
+        Doctor snapshot = doctorMapper.toSnapshot(doctor);
 
         doctor.setDeletedAt(LocalDateTime.now());
         doctorRepository.save(doctor);
@@ -263,36 +273,14 @@ public class DoctorServiceImpl implements DoctorService {
 
     private Doctor createDoctorProfile(User user, Specialty specialty, UpgradeToDoctorRequest request) {
 
-        Doctor doctor = new Doctor();
+        Doctor doctor = doctorMapper.toEntity(request);
 
         doctor.setUser(user);
         doctor.setSpecialty(specialty);
-        doctor.setDegree(request.getDegree());
-        doctor.setExperienceYears(request.getExperienceYears() == null ? 0 : request.getExperienceYears());
-        doctor.setConsultationFee(
-                request.getConsultationFee() == null ? BigDecimal.ZERO : request.getConsultationFee());
-        doctor.setBiography(request.getBiography());
-
         doctor.setAverageRating(BigDecimal.ZERO);
         doctor.setTotalReviews(0);
 
         return doctor;
-    }
-
-    private Doctor buildSnapshot(Doctor doctor) {
-
-        Doctor snapshot = new Doctor();
-        snapshot.setId(doctor.getId());
-        snapshot.setUser(doctor.getUser());
-        snapshot.setSpecialty(doctor.getSpecialty());
-        snapshot.setDegree(doctor.getDegree());
-        snapshot.setExperienceYears(doctor.getExperienceYears());
-        snapshot.setConsultationFee(doctor.getConsultationFee());
-        snapshot.setBiography(doctor.getBiography());
-        snapshot.setAverageRating(doctor.getAverageRating());
-        snapshot.setTotalReviews(doctor.getTotalReviews());
-
-        return snapshot;
     }
 
     @Override

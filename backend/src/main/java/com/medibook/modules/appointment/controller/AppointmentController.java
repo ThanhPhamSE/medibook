@@ -12,6 +12,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
 import com.medibook.common.enums.AppointmentStatus;
 import com.medibook.common.response.ApiResponse;
 import com.medibook.common.response.PageResponse;
@@ -28,11 +31,13 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/v1/appointments")
 @RequiredArgsConstructor
 @Validated
+@PreAuthorize("isAuthenticated()")
 public class AppointmentController {
 
     private final AppointmentService appointmentService;
 
     @PostMapping
+    @PreAuthorize("hasRole('PATIENT')")
     public ResponseEntity<ApiResponse<AppointmentResponse>> createAppointment(
             @Valid @RequestBody AppointmentCreateRequest request) {
 
@@ -42,12 +47,13 @@ public class AppointmentController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<AppointmentResponse>> getAppointment(
-            @PathVariable Long id) {
+            @PathVariable @Positive Long id) {
 
         return ResponseEntity.ok(ApiResponse.success(appointmentService.getAppointment(id)));
     }
 
     @GetMapping("/me")
+    @PreAuthorize("hasRole('PATIENT')")
     public ResponseEntity<ApiResponse<Page<AppointmentResponse>>> getMyAppointments(
             Pageable pageable) {
 
@@ -55,7 +61,8 @@ public class AppointmentController {
     }
 
     @PutMapping("/{id}/cancel")
-    public ResponseEntity<ApiResponse<Void>> cancelAppointment(@PathVariable Long id,
+    @PreAuthorize("hasAnyRole('PATIENT','ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> cancelAppointment(@PathVariable @Positive Long id,
             @RequestParam(required = false) String reason) {
 
         appointmentService.cancelAppointment(id, reason);
@@ -64,22 +71,24 @@ public class AppointmentController {
     }
 
     @GetMapping("/slots/check")
-    public ResponseEntity<ApiResponse<Boolean>> isSlotBooked(@RequestParam Long doctorId,
-            @RequestParam LocalDateTime startDatetime) {
+    public ResponseEntity<ApiResponse<Boolean>> isSlotBooked(@RequestParam @Positive Long doctorId,
+            @RequestParam @NotNull LocalDateTime startDatetime) {
 
         return ResponseEntity.ok(ApiResponse.success(appointmentService.isSlotBooked(doctorId, startDatetime)));
     }
 
     @GetMapping("/doctor/{doctorId}/booked")
+    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR')")
     public ResponseEntity<ApiResponse<List<BookedSlotResponse>>> getBookedAppointmentsByDate(
-            @PathVariable Long doctorId,
-            @RequestParam LocalDate date) {
+            @PathVariable @Positive Long doctorId,
+            @RequestParam @NotNull LocalDate date) {
 
         return ResponseEntity.ok(ApiResponse.success(appointmentService.getBookedAppointmentsByDate(doctorId, date)));
     }
 
     @PatchMapping("/{id}/confirm")
-    public ResponseEntity<ApiResponse<Void>> confirm(@PathVariable Long id) {
+    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR')")
+    public ResponseEntity<ApiResponse<Void>> confirm(@PathVariable @Positive Long id) {
 
         appointmentService.confirmAppointment(id);
 
@@ -87,7 +96,8 @@ public class AppointmentController {
     }
 
     @PatchMapping("/{id}/complete")
-    public ResponseEntity<ApiResponse<Void>> complete(@PathVariable Long id) {
+    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR')")
+    public ResponseEntity<ApiResponse<Void>> complete(@PathVariable @Positive Long id) {
 
         appointmentService.completeAppointment(id);
 
@@ -95,7 +105,8 @@ public class AppointmentController {
     }
 
     @PatchMapping("/{id}/no-show")
-    public ResponseEntity<ApiResponse<Void>> noShow(@PathVariable Long id) {
+    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR')")
+    public ResponseEntity<ApiResponse<Void>> noShow(@PathVariable @Positive Long id) {
 
         appointmentService.markNoShow(id);
 
@@ -103,6 +114,7 @@ public class AppointmentController {
     }
 
     @GetMapping("/doctor/today")
+    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR')")
     public ResponseEntity<ApiResponse<Page<AppointmentResponse>>> today(
             Pageable pageable) {
 
@@ -110,13 +122,15 @@ public class AppointmentController {
     }
 
     @GetMapping("/doctor/week")
+    @PreAuthorize("hasAnyRole('ADMIN','DOCTOR')")
     public ResponseEntity<ApiResponse<Page<AppointmentResponse>>> week(Pageable pageable) {
 
         return ResponseEntity.ok(ApiResponse.success(appointmentService.getCurrentWeekAppointments(pageable)));
     }
 
     @PutMapping("/{id}/reschedule")
-    public ResponseEntity<ApiResponse<AppointmentResponse>> rescheduleAppointment(@PathVariable Long id,
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<ApiResponse<AppointmentResponse>> rescheduleAppointment(@PathVariable @Positive Long id,
             @Valid @RequestBody AppointmentRescheduleRequest request) {
 
         return ResponseEntity.ok(ApiResponse.success(appointmentService.rescheduleAppointment(id, request)));

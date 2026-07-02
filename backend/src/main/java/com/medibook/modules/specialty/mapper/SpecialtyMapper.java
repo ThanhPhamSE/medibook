@@ -30,4 +30,10 @@ public interface SpecialtyMapper {
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateEntity(SpecialtyUpdateRequest request, @MappingTarget Specialty specialty);
 
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    Specialty toSnapshot(Specialty specialty);
+
 }
