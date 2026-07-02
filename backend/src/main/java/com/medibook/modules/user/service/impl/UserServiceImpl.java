@@ -21,13 +21,13 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class UserServiceImpl implements UserService {
 
         private final UserRepository userRepository;
         private final UserMapper userMapper;
 
         @Override
+        @Transactional(readOnly = true)
         public User getCurrentUser() {
 
                 String email = org.springframework.security.core.context.SecurityContextHolder
@@ -58,16 +58,17 @@ public class UserServiceImpl implements UserService {
         @Transactional(readOnly = true)
         public UserResponse getUserById(Long id) {
 
-                User user = userRepository.findById(id)
+                User user = userRepository.findByIdAndDeletedAtIsNull(id)
                                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
                 return userMapper.toResponse(user);
         }
 
         @Override
+        @Transactional
         public void activateUser(Long id) {
 
-                User user = userRepository.findById(id)
+                User user = userRepository.findByIdAndDeletedAtIsNull(id)
                                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
                 user.setIsActive(true);
@@ -75,9 +76,10 @@ public class UserServiceImpl implements UserService {
         }
 
         @Override
+        @Transactional
         public void deactivateUser(Long id) {
 
-                User user = userRepository.findById(id)
+                User user = userRepository.findByIdAndDeletedAtIsNull(id)
                                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
                 user.setIsActive(false);

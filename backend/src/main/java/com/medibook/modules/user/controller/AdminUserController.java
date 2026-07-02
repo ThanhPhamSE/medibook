@@ -1,6 +1,7 @@
 package com.medibook.modules.user.controller;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,32 +13,35 @@ import com.medibook.modules.user.dto.request.UserSearchRequest;
 import com.medibook.modules.user.dto.response.UserResponse;
 import com.medibook.modules.user.service.UserService;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/v1/admin/users")
 @RequiredArgsConstructor
+@Validated
 public class AdminUserController {
 
     private final UserService userService;
 
     @GetMapping
-    public PageResponse<UserResponse> getAll(UserSearchRequest request, Pageable pageable) {
+    public PageResponse<UserResponse> getAll(@Valid UserSearchRequest request, Pageable pageable) {
         return userService.getAllUsers(request, pageable);
     }
 
     @GetMapping("/{id}")
-    public UserResponse getById(@PathVariable Long id) {
+    public UserResponse getById(@PathVariable @Positive Long id) {
         return userService.getUserById(id);
     }
 
     @PatchMapping("/{id}/activate")
-    public void activate(@PathVariable Long id) {
+    public void activate(@PathVariable @Positive Long id) {
         userService.activateUser(id);
     }
 
     @PatchMapping("/{id}/deactivate")
-    public void deactivate(@PathVariable Long id) {
+    public void deactivate(@PathVariable @Positive Long id) {
         userService.deactivateUser(id);
     }
 }

@@ -26,7 +26,8 @@ public class UserFacadeImpl implements UserFacade {
     @Override
     public User getUserById(Long id) {
 
-        return userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return userRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
     }
 
