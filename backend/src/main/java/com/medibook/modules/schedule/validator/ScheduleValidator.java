@@ -26,7 +26,7 @@ public class ScheduleValidator {
 
     public DoctorWorkingPattern validateDoctorWorkingPattern(Long doctorId, LocalDateTime startDatetime) {
 
-        DayOfWeekEnum dayOfWeek = DayOfWeekEnum.valueOf(startDatetime.getDayOfWeek().name());
+        DayOfWeekEnum dayOfWeek = DayOfWeekEnum.fromJavaDayOfWeek(startDatetime.getDayOfWeek());
 
         DoctorWorkingPattern pattern = workingPatternRepository
                 .findByDoctorIdAndDayOfWeekAndDeletedAtIsNull(doctorId, dayOfWeek)

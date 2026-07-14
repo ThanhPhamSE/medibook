@@ -28,7 +28,11 @@ public class UserSpecification {
         return (root, query, cb) -> roleId == null ? null : cb.equal(root.get("role").get("id"), roleId);
     }
 
+    public static Specification<User> roleName(String roleName) {
+        return (root, query, cb) -> (roleName == null || roleName.isBlank()) ? null : cb.equal(root.get("role").get("name"), roleName.toUpperCase());
+    }
+
     public static Specification<User> isActive(Boolean isActive) {
         return (root, query, cb) -> isActive == null ? null : cb.equal(root.get("isActive"), isActive);
     }
-}
+}

@@ -12,6 +12,7 @@ import com.medibook.common.response.PageResponse;
 import com.medibook.modules.appointment.dto.request.AppointmentCreateRequest;
 import com.medibook.modules.appointment.dto.request.AppointmentRescheduleRequest;
 import com.medibook.modules.appointment.dto.response.AppointmentResponse;
+import com.medibook.modules.appointment.dto.response.AppointmentStatsResponse;
 import com.medibook.modules.appointment.dto.response.BookedSlotResponse;
 import com.medibook.modules.appointment.entity.Appointment;
 
@@ -21,7 +22,7 @@ public interface AppointmentService {
 
         AppointmentResponse getAppointment(Long id);
 
-        Page<AppointmentResponse> getMyAppointments(Pageable pageable);
+        Page<AppointmentResponse> getMyAppointments(AppointmentStatus status, String timeFilter, Pageable pageable);
 
         void cancelAppointment(Long id, String reason);
 
@@ -53,4 +54,9 @@ public interface AppointmentService {
         Page<AppointmentResponse> getTodayAppointments(Pageable pageable);
 
         Page<AppointmentResponse> getCurrentWeekAppointments(Pageable pageable);
+
+        List<AppointmentResponse> getUpcomingAppointments();
+
+        AppointmentStatsResponse getMyAppointmentsStats();
 }
+

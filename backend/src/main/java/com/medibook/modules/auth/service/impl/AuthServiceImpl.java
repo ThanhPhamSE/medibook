@@ -11,9 +11,11 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.medibook.common.constant.RoleConstants;
 import com.medibook.common.exception.BadRequestException;
 import com.medibook.common.exception.ResourceNotFoundException;
 import com.medibook.common.exception.UnauthorizedException;
+import com.medibook.modules.doctor.repository.DoctorRepository;
 import com.medibook.modules.auth.dto.request.ChangePasswordRequest;
 import com.medibook.modules.auth.dto.request.ForgotPasswordRequest;
 import com.medibook.modules.auth.dto.request.LoginRequest;
@@ -28,13 +30,17 @@ import com.medibook.modules.auth.mapper.AuthMapper;
 import com.medibook.modules.auth.service.AuthService;
 import com.medibook.modules.token.entity.RefreshToken;
 import com.medibook.modules.token.service.RefreshTokenService;
+import com.medibook.modules.user.dto.response.UserResponse;
 import com.medibook.modules.user.entity.Role;
 import com.medibook.modules.user.entity.User;
 import com.medibook.modules.user.repository.RoleRepository;
 import com.medibook.modules.user.repository.UserRepository;
+import com.medibook.security.context.CurrentUserRequestCache;
 import com.medibook.security.jwt.JwtProperties;
 import com.medibook.security.jwt.JwtService;
 
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
@@ -52,6 +58,8 @@ public class AuthServiceImpl implements AuthService {
     private final JwtProperties jwtProperties;
     private final AuthMapper authMapper;
     private final EmailService emailService;
+    private final DoctorRepository doctorRepository;
+    private final CurrentUserRequestCache currentUserRequestCache;
 
     @Override
     @Transactional
@@ -72,9 +80,37 @@ public class AuthServiceImpl implements AuthService {
 
         String token = jwtService.generateEmailVerificationToken(user.getId(), user.getEmail());
 
-        emailService.sendVerificationEmail(user.getEmail(), token);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    emailService.sendVerificationEmail(user.getEmail(), token);
+                }
+            });
+        } else {
+            emailService.sendVerificationEmail(user.getEmail(), token);
+        }
 
         return authMapper.toRegisterResponse(user);
+    }
+
+    @Override
+    public void resendVerificationEmail(String email) {
+
+        if (email == null || email.isBlank()) {
+            throw new BadRequestException("Email is required");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (Boolean.TRUE.equals(user.getIsActive())) {
+            throw new BadRequestException("Email already verified");
+        }
+
+        String token = jwtService.generateEmailVerificationToken(user.getId(), user.getEmail());
+
+        emailService.sendVerificationEmail(user.getEmail(), token);
     }
 
     @Override
@@ -227,5 +263,21 @@ public class AuthServiceImpl implements AuthService {
         user.setIsActive(true);
 
         userRepository.save(user);
+    }
+
+    @Override
+    public UserResponse getCurrentUser(Long userId) {
+        User user = currentUserRequestCache.getUser()
+                .orElseGet(() -> userRepository.findById(userId)
+                        .orElseThrow(() -> new ResourceNotFoundException("User not found")));
+
+        UserResponse response = authMapper.toUserResponse(user);
+
+        if (RoleConstants.DOCTOR.equals(user.getRole().getName())) {
+            doctorRepository.findByUserIdAndDeletedAtIsNull(userId)
+                    .ifPresent(doctor -> response.setDoctorId(doctor.getId()));
+        }
+
+        return response;
     }
 }

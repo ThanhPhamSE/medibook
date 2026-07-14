@@ -10,6 +10,7 @@ import com.medibook.modules.auth.dto.response.ForgotPasswordResponse;
 import com.medibook.modules.auth.dto.response.LoginResponse;
 import com.medibook.modules.auth.dto.response.RegisterResponse;
 import com.medibook.modules.auth.dto.response.ResetPasswordResponse;
+import com.medibook.modules.user.dto.response.UserResponse;
 
 public interface AuthService {
 
@@ -30,4 +31,8 @@ public interface AuthService {
     ResetPasswordResponse resetPassword(ResetPasswordRequest request);
 
     void verifyEmail(String token);
+
+    void resendVerificationEmail(String email);
+
+    UserResponse getCurrentUser(Long userId);
 }

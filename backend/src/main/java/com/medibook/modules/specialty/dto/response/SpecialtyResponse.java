@@ -18,6 +18,7 @@ public class SpecialtyResponse {
     private Long id;
     private String name;
     private String description;
+    private Integer doctorCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

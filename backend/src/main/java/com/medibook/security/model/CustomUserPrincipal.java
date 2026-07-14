@@ -16,6 +16,7 @@ public class CustomUserPrincipal implements UserDetails {
     private final String email;
     private final String password;
     private final Boolean active;
+    private final String roleName;
     private final Collection<? extends GrantedAuthority> authorities;
 
     @Override

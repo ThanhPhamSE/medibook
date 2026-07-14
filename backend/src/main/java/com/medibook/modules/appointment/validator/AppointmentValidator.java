@@ -16,7 +16,11 @@ public class AppointmentValidator {
         }
 
         if (startDateTime.isBefore(LocalDateTime.now().plusHours(6))) {
-            throw new BadRequestException("Appointment must be booked at least 6 hours advance");
+            throw new BadRequestException("Appointment must be booked at least 6 hours in advance");
+        }
+
+        if (startDateTime.isAfter(LocalDateTime.now().plusDays(90))) {
+            throw new BadRequestException("Appointment cannot be booked more than 90 days in advance");
         }
     }
 

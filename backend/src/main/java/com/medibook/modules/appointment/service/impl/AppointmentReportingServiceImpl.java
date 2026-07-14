@@ -10,8 +10,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.medibook.common.enums.AppointmentStatus;
 import com.medibook.modules.appointment.repository.AppointmentRepository;
+import com.medibook.modules.appointment.repository.AppointmentTrendProjection;
+import com.medibook.modules.appointment.repository.RevenueTrendProjection;
+import com.medibook.modules.appointment.repository.SpecialtyDistributionProjection;
 import com.medibook.modules.appointment.repository.StatusCountProjection;
 import com.medibook.modules.appointment.service.AppointmentReportingService;
+import com.medibook.modules.reporting.dto.response.ChartPoint;
 
 import lombok.RequiredArgsConstructor;
 
@@ -57,5 +61,26 @@ public class AppointmentReportingServiceImpl implements AppointmentReportingServ
     @Override
     public List<StatusCountProjection> countGroupByStatus(LocalDateTime from, LocalDateTime to) {
         return appointmentRepository.countGroupByStatus(from, to);
+    }
+
+    @Override
+    public List<AppointmentTrendProjection> getAppointmentTrend(LocalDateTime from, LocalDateTime to) {
+        return appointmentRepository.getAppointmentTrend(from, to);
+    }
+
+    @Override
+    public List<RevenueTrendProjection> getRevenueTrend(LocalDateTime from, LocalDateTime to) {
+        return appointmentRepository.getRevenueTrend(from, to, AppointmentStatus.COMPLETED);
+    }
+
+    @Override
+    public List<ChartPoint> getSpecialtyDistribution() {
+        return appointmentRepository.getSpecialtyDistribution()
+                .stream()
+                .map(sd -> ChartPoint.builder()
+                        .label(sd.getLabel())
+                        .value(sd.getValue() != null ? sd.getValue() : 0L)
+                        .build())
+                .toList();
     }
 }

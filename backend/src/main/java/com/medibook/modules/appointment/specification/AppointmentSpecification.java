@@ -38,4 +38,25 @@ public class AppointmentSpecification {
     public static Specification<Appointment> startBefore(LocalDateTime to) {
         return (root, query, cb) -> to == null ? null : cb.lessThan(root.get("startDatetime"), to);
     }
+
+    public static Specification<Appointment> hasStatuses(AppointmentStatus... statuses) {
+
+        return (root, query, cb) -> {
+
+            if (statuses == null || statuses.length == 0) {
+                return null;
+            }
+
+            return root.get("status").in((Object[]) statuses);
+        };
+    }
+
+    public static Specification<Appointment> isUpcoming() {
+
+        return (root, query, cb) -> cb.and(
+
+                cb.greaterThanOrEqualTo(root.get("startDatetime"), LocalDateTime.now()),
+
+                root.get("status").in(AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED));
+    }
 }

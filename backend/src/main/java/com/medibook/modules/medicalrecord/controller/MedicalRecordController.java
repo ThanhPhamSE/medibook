@@ -35,7 +35,7 @@ public class MedicalRecordController {
     public ResponseEntity<ApiResponse<MedicalRecordResponse>> create(
             @Valid @RequestBody MedicalRecordCreateRequest request) {
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(service.create(request)));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(HttpStatus.CREATED.value(), "Medical record created successfully", service.create(request)));
     }
 
     @PreAuthorize("hasRole('DOCTOR')")
@@ -46,14 +46,14 @@ public class MedicalRecordController {
         return ResponseEntity.ok(ApiResponse.success(service.update(id, request)));
     }
 
-    @PreAuthorize("hasAnyRole('PATIENT','DOCTOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('CUSTOMER','DOCTOR','ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<MedicalRecordResponse>> getById(@PathVariable Long id) {
 
         return ResponseEntity.ok(ApiResponse.success(service.getById(id)));
     }
 
-    @PreAuthorize("hasRole('PATIENT')")
+    @PreAuthorize("hasRole('CUSTOMER')")
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<Page<MedicalRecordResponse>>> getMyMedicalRecords(
             Pageable pageable) {

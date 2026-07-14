@@ -77,7 +77,10 @@ public interface DoctorMapper {
     // SUMMARY RESPONSE
     @Mapping(source = "user.fullName", target = "fullName")
     @Mapping(source = "user.profileImage", target = "profileImage")
+    @Mapping(source = "specialty.id", target = "specialtyId")
     @Mapping(source = "specialty.name", target = "specialtyName")
+    @Mapping(source = "degree", target = "degree")
+    @Mapping(source = "biography", target = "biography")
     DoctorSummaryResponse toSummaryResponse(Doctor doctor);
 
     List<DoctorSummaryResponse> toSummaryResponseList(List<Doctor> doctors);

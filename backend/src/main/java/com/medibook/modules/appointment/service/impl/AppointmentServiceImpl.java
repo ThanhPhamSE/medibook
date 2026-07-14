@@ -6,9 +6,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -23,14 +28,20 @@ import com.medibook.common.response.util.PageMapper;
 import com.medibook.modules.appointment.dto.request.AppointmentCreateRequest;
 import com.medibook.modules.appointment.dto.request.AppointmentRescheduleRequest;
 import com.medibook.modules.appointment.dto.response.AppointmentResponse;
+import com.medibook.modules.appointment.dto.response.AppointmentStatsResponse;
 import com.medibook.modules.appointment.dto.response.BookedSlotResponse;
+
 import com.medibook.modules.appointment.entity.Appointment;
 import com.medibook.modules.appointment.entity.AppointmentStatusHistory;
 import com.medibook.modules.appointment.mapper.AppointmentMapper;
 import com.medibook.modules.appointment.repository.AppointmentRepository;
+import com.medibook.modules.appointment.repository.StatusCountProjection;
 import com.medibook.modules.appointment.repository.AppointmentStatusHistoryRepository;
+
 import com.medibook.modules.appointment.service.AppointmentService;
 import com.medibook.modules.appointment.specification.AppointmentSpecification;
+import com.medibook.security.util.SecurityUtils;
+import com.medibook.modules.appointment.policy.AppointmentStatusPolicy;
 import com.medibook.modules.appointment.validator.AppointmentValidator;
 import com.medibook.modules.doctor.entity.Doctor;
 import com.medibook.modules.doctor.facade.DoctorFacade;
@@ -38,14 +49,16 @@ import com.medibook.modules.notification.dto.AppointmentEmailData;
 import com.medibook.modules.notification.service.EmailService;
 import com.medibook.modules.schedule.entity.DoctorWorkingPattern;
 import com.medibook.modules.schedule.facade.ScheduleFacade;
+import com.medibook.modules.schedule.cache.ScheduleCacheService;
 import com.medibook.modules.user.entity.User;
 import com.medibook.modules.user.facade.UserFacade;
+import com.medibook.modules.audit.service.AuditService;
 
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Transactional
-@RequiredArgsConstructor
+@Slf4j
 public class AppointmentServiceImpl implements AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
@@ -55,16 +68,46 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final UserFacade userFacade;
     private final ScheduleFacade scheduleFacade;
     private final AppointmentValidator validator;
+    private final AppointmentStatusPolicy statusPolicy;
 
     private final AppointmentMapper mapper;
     private final EmailService emailService;
+    private final ScheduleCacheService scheduleCacheService;
+    private final AuditService auditService;
 
+    public AppointmentServiceImpl(AppointmentRepository appointmentRepository,
+            AppointmentStatusHistoryRepository historyRepository,
+            DoctorFacade doctorFacade,
+            UserFacade userFacade,
+            ScheduleFacade scheduleFacade,
+            AppointmentValidator validator,
+            AppointmentStatusPolicy statusPolicy,
+            AppointmentMapper mapper,
+            EmailService emailService,
+            @Lazy ScheduleCacheService scheduleCacheService,
+            AuditService auditService) {
+        this.appointmentRepository = appointmentRepository;
+        this.historyRepository = historyRepository;
+        this.doctorFacade = doctorFacade;
+        this.userFacade = userFacade;
+        this.scheduleFacade = scheduleFacade;
+        this.validator = validator;
+        this.statusPolicy = statusPolicy;
+        this.mapper = mapper;
+        this.emailService = emailService;
+        this.scheduleCacheService = scheduleCacheService;
+        this.auditService = auditService;
+    }
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     @Override
     public AppointmentResponse createAppointment(AppointmentCreateRequest request) {
+        log.info("Request to create appointment: doctorId={}, startTime={}", request.getDoctorId(),
+                request.getStartDateTime());
 
         validator.validateBookingTime(request.getStartDateTime());
 
-        Doctor doctor = doctorFacade.getDoctorEntityById(request.getDoctorId());
+        Doctor doctor = doctorFacade.getDoctorForBooking(request.getDoctorId());
 
         if (doctor == null) {
             throw new BadRequestException("Doctor not found");
@@ -78,7 +121,20 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new BadRequestException("Doctor is inactive");
         }
 
+        if (doctor.getSpecialty() != null && doctor.getSpecialty().getDeletedAt() != null) {
+            throw new BadRequestException("Doctor's specialty is no longer active");
+        }
+
+        if (doctor.getConsultationFee() == null
+                || doctor.getConsultationFee().compareTo(java.math.BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("Invalid consultation fee");
+        }
+
         User patient = userFacade.getCurrentUserEntity();
+
+        if (doctor.getUser() != null && doctor.getUser().getId().equals(patient.getId())) {
+            throw new BadRequestException("Doctors cannot book appointments with themselves");
+        }
 
         if (patient == null || !patient.getIsActive()) {
             throw new BadRequestException("Account is inactive");
@@ -90,11 +146,15 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         LocalDateTime endTime = startTime.plusMinutes(pattern.getSlotDuration());
 
+        if (scheduleFacade.isDoctorOnTimeOff(doctor.getId(), startTime, endTime)) {
+            throw new BadRequestException("Doctor is on time off during this period");
+        }
+
         boolean overlap = appointmentRepository.existsPatientOverlap(patient.getId(), null, startTime, endTime);
 
         validator.validatePatientOverlap(overlap);
 
-        appointmentRepository.findLockedAppointment(doctor.getId(), startTime);
+        // appointmentRepository.findLockedAppointment(doctor.getId(), startTime);
 
         if (appointmentRepository.existsActiveAppointment(doctor.getId(), startTime)) {
             throw new BadRequestException("Slot already booked");
@@ -120,8 +180,19 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         saveHistory(savedAppointment, null, AppointmentStatus.PENDING, patient);
 
+        try {
+            scheduleCacheService.evictSlots(doctor.getId(), startTime.toLocalDate());
+        } catch (Exception e) {
+            log.warn("Failed to evict cache after creating appointment: {}", e.getMessage());
+        }
+
+        auditService.log("CREATE", "Appointment", savedAppointment.getId(), null, savedAppointment);
+
         sendEmailAfterCommit(
                 () -> emailService.sendAppointmentCreatedEmail(AppointmentEmailData.from(savedAppointment)));
+
+        log.info("Successfully created appointment: id={}, doctorId={}, patientId={}, startTime={}",
+                savedAppointment.getId(), doctor.getId(), patient.getId(), startTime);
 
         return mapper.toResponse(savedAppointment);
     }
@@ -140,30 +211,55 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<AppointmentResponse> getMyAppointments(Pageable pageable) {
+    public Page<AppointmentResponse> getMyAppointments(AppointmentStatus status, String timeFilter, Pageable pageable) {
 
-        User patient = userFacade.getCurrentUserEntity();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        String roleName = SecurityUtils.getCurrentRoleName();
+        LocalDateTime now = LocalDateTime.now();
 
-        return appointmentRepository.findByPatientIdAndDeletedAtIsNull(patient.getId(), pageable)
-                .map(mapper::toResponse);
+        if (RoleConstants.DOCTOR.equals(roleName)) {
+            Doctor doctor = doctorFacade.getDoctorByUserId(currentUserId);
+
+            var spec = AppointmentSpecification.notDeleted()
+                    .and(AppointmentSpecification.hasDoctorId(doctor.getId()))
+                    .and(AppointmentSpecification.hasStatus(status))
+                    .and(buildTimeFilterSpec(timeFilter, now));
+
+            return appointmentRepository.findAll(spec, pageable).map(mapper::toResponse);
+        }
+
+        var spec = AppointmentSpecification.notDeleted()
+                .and(AppointmentSpecification.hasPatientId(currentUserId))
+                .and(AppointmentSpecification.hasStatus(status))
+                .and(buildTimeFilterSpec(timeFilter, now));
+
+        return appointmentRepository.findAll(spec, pageable).map(mapper::toResponse);
+    }
+
+    private Specification<Appointment> buildTimeFilterSpec(
+            String timeFilter,
+            LocalDateTime now) {
+
+        if ("upcoming".equalsIgnoreCase(timeFilter)) {
+            return AppointmentSpecification.startAfter(now);
+        } else if ("past".equalsIgnoreCase(timeFilter)) {
+            return AppointmentSpecification.startBefore(now);
+        }
+
+        return (root, query, cb) -> null;
     }
 
     @Override
     public void cancelAppointment(Long id, String reason) {
+        log.info("Request to cancel appointment: id={}", id);
 
         Appointment appointment = appointmentRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
 
-        if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
-            throw new BadRequestException(
-                    "Appointment already cancelled");
-        }
+        statusPolicy.validateCancelTransition(appointment.getStatus());
 
-        if (appointment.getStatus() != AppointmentStatus.PENDING
-                && appointment.getStatus() != AppointmentStatus.CONFIRMED) {
-
-            throw new BadRequestException(
-                    "Appointment cannot be cancelled");
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new BadRequestException("Cancellation reason is required");
         }
 
         if (appointment.getStartDatetime()
@@ -187,7 +283,18 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         saveHistory(appointment, oldStatus, AppointmentStatus.CANCELLED, user);
 
+        try {
+            scheduleCacheService.evictSlots(appointment.getDoctor().getId(),
+                    appointment.getStartDatetime().toLocalDate());
+        } catch (Exception e) {
+            log.warn("Failed to evict cache after cancelling appointment: {}", e.getMessage());
+        }
+
+        auditService.log("CANCEL", "Appointment", appointment.getId(), oldStatus, AppointmentStatus.CANCELLED);
+
         sendEmailAfterCommit(() -> emailService.sendAppointmentCancelledEmail(AppointmentEmailData.from(appointment)));
+
+        log.info("Successfully cancelled appointment: id={}, patientId={}", id, user.getId());
     }
 
     @Override
@@ -207,20 +314,27 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Override
     public void confirmAppointment(Long id) {
+        log.info("Request to confirm appointment: id={}", id);
 
         Appointment appointment = appointmentRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
 
+        if (appointment.getStartDatetime().isBefore(LocalDateTime.now())) {
+            throw new BadRequestException("Cannot confirm appointment that has already started or passed");
+        }
+
+        if (appointment.getDoctor().getDeletedAt() != null) {
+            throw new BadRequestException("Cannot confirm appointment for deleted doctor");
+        }
+
+        if (appointment.getDoctor().getUser() == null || !appointment.getDoctor().getUser().getIsActive()) {
+            throw new BadRequestException("Cannot confirm appointment for inactive doctor");
+        }
+
         User currentUser = userFacade.getCurrentUserEntity();
         ensureDoctorOrAdminAccess(appointment, currentUser);
 
-        AppointmentStatus current = appointment.getStatus();
-
-        boolean valid = current == AppointmentStatus.PENDING;
-
-        if (!valid) {
-            throw new BadRequestException("Invalid appointment status transition");
-        }
+        statusPolicy.validateConfirmTransition(appointment.getStatus());
 
         AppointmentStatus oldStatus = appointment.getStatus();
 
@@ -228,22 +342,39 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         appointmentRepository.save(appointment);
 
-        saveHistory(appointment, oldStatus, AppointmentStatus.CONFIRMED, userFacade.getCurrentUserEntity());
+        saveHistory(appointment, oldStatus, AppointmentStatus.CONFIRMED, currentUser);
+
+        auditService.log("CONFIRM", "Appointment", appointment.getId(), oldStatus, AppointmentStatus.CONFIRMED);
+
+        sendEmailAfterCommit(
+                () -> emailService.sendAppointmentCreatedEmail(AppointmentEmailData.from(appointment)));
+
+        log.info("Successfully confirmed appointment: id={}", id);
     }
 
     @Override
     public void completeAppointment(Long id) {
+        log.info("Request to complete appointment: id={}", id);
 
         Appointment appointment = appointmentRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
 
+        if (appointment.getStartDatetime().isAfter(LocalDateTime.now())) {
+            throw new BadRequestException("Cannot complete appointment that has not started yet");
+        }
+
+        if (appointment.getDoctor().getDeletedAt() != null) {
+            throw new BadRequestException("Cannot complete appointment for deleted doctor");
+        }
+
+        if (appointment.getDoctor().getUser() == null || !appointment.getDoctor().getUser().getIsActive()) {
+            throw new BadRequestException("Cannot complete appointment for inactive doctor");
+        }
+
         User currentUser = userFacade.getCurrentUserEntity();
         ensureDoctorOrAdminAccess(appointment, currentUser);
 
-        if (appointment.getStatus() != AppointmentStatus.CONFIRMED) {
-            throw new BadRequestException(
-                    "Invalid appointment status transition");
-        }
+        statusPolicy.validateCompleteTransition(appointment.getStatus());
 
         AppointmentStatus oldStatus = appointment.getStatus();
 
@@ -251,21 +382,31 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         appointmentRepository.save(appointment);
 
-        saveHistory(appointment, oldStatus, AppointmentStatus.COMPLETED, userFacade.getCurrentUserEntity());
+        saveHistory(appointment, oldStatus, AppointmentStatus.COMPLETED, currentUser);
+
+        auditService.log("COMPLETE", "Appointment", appointment.getId(), oldStatus, AppointmentStatus.COMPLETED);
+
+        sendEmailAfterCommit(
+                () -> emailService.sendAppointmentCreatedEmail(AppointmentEmailData.from(appointment)));
+
+        log.info("Successfully completed appointment: id={}", id);
     }
 
     @Override
     public void markNoShow(Long id) {
+        log.info("Request to mark appointment as no-show: id={}", id);
 
         Appointment appointment = appointmentRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
 
+        if (appointment.getStartDatetime().isAfter(LocalDateTime.now())) {
+            throw new BadRequestException("Cannot mark appointment as no-show before the appointment time");
+        }
+
         User currentUser = userFacade.getCurrentUserEntity();
         ensureDoctorOrAdminAccess(appointment, currentUser);
 
-        if (appointment.getStatus() != AppointmentStatus.CONFIRMED) {
-            throw new BadRequestException("Invalid appointment status transition");
-        }
+        statusPolicy.validateNoShowTransition(appointment.getStatus());
 
         AppointmentStatus oldStatus = appointment.getStatus();
 
@@ -273,7 +414,11 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         appointmentRepository.save(appointment);
 
-        saveHistory(appointment, oldStatus, AppointmentStatus.NO_SHOW, userFacade.getCurrentUserEntity());
+        saveHistory(appointment, oldStatus, AppointmentStatus.NO_SHOW, currentUser);
+
+        auditService.log("NO_SHOW", "Appointment", appointment.getId(), oldStatus, AppointmentStatus.NO_SHOW);
+
+        log.info("Successfully marked appointment as no-show: id={}", id);
     }
 
     @Override
@@ -294,6 +439,8 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Override
     public AppointmentResponse rescheduleAppointment(Long appointmentId, AppointmentRescheduleRequest request) {
+        log.info("Request to reschedule appointment: id={}, newStartTime={}", appointmentId,
+                request.getNewStartDatetime());
 
         Appointment appointment = appointmentRepository.findByIdAndDeletedAtIsNull(appointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
@@ -302,19 +449,11 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         ensurePatientAccess(appointment, patient);
 
-        if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
-            throw new BadRequestException("Appointment already cancelled");
-        }
-
-        if (appointment.getStatus() != AppointmentStatus.PENDING
-                && appointment.getStatus() != AppointmentStatus.CONFIRMED) {
-
-            throw new BadRequestException("Appointment cannot be cancelled");
-        }
+        statusPolicy.validateRescheduleTransition(appointment.getStatus());
 
         if (appointment.getStartDatetime().isBefore(LocalDateTime.now().plusHours(24))) {
 
-            throw new BadRequestException("Appointment can only be cancelled at least 24 hours in advance");
+            throw new BadRequestException("Appointment can only be rescheduled at least 24 hours in advance.");
         }
 
         LocalDateTime newStart = request.getNewStartDatetime();
@@ -326,20 +465,50 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         LocalDateTime newEnd = newStart.plusMinutes(pattern.getSlotDuration());
 
+        if (scheduleFacade.isDoctorOnTimeOff(appointment.getDoctor().getId(), newStart, newEnd)) {
+            throw new BadRequestException("Doctor is on time off during this period");
+        }
+
         boolean overlap = appointmentRepository.existsPatientOverlap(patient.getId(), appointment.getId(), newStart,
                 newEnd);
 
         validator.validatePatientOverlap(overlap);
+
+        if (appointment.getStartDatetime().equals(newStart)) {
+            throw new BadRequestException(
+                    "The new appointment time must be different from the current appointment time.");
+        }
 
         if (appointmentRepository.existsActiveAppointment(appointment.getDoctor().getId(), newStart)) {
 
             throw new BadRequestException("Slot already booked");
         }
 
+        LocalDate oldDate = appointment.getStartDatetime().toLocalDate();
+
         appointment.setStartDatetime(newStart);
         appointment.setEndDatetime(newEnd);
 
         appointmentRepository.save(appointment);
+
+        saveHistory(appointment, appointment.getStatus(), appointment.getStatus(), patient);
+
+        auditService.log("RESCHEDULE", "Appointment", appointment.getId(), oldDate,
+                appointment.getStartDatetime().toLocalDate());
+
+        try {
+            scheduleCacheService.evictSlots(appointment.getDoctor().getId(), oldDate);
+            scheduleCacheService.evictSlots(appointment.getDoctor().getId(),
+                    appointment.getStartDatetime().toLocalDate());
+        } catch (Exception e) {
+            log.warn("Failed to evict cache after rescheduling appointment: {}", e.getMessage());
+        }
+
+        sendEmailAfterCommit(
+                () -> emailService.sendAppointmentCreatedEmail(AppointmentEmailData.from(appointment)));
+
+        log.info("Successfully rescheduled appointment: id={}, oldDate={}, newDate={}", appointmentId, oldDate,
+                appointment.getStartDatetime().toLocalDate());
 
         return mapper.toResponse(appointment);
     }
@@ -523,5 +692,58 @@ public class AppointmentServiceImpl implements AppointmentService {
         LocalDate end = today.with(DayOfWeek.SUNDAY);
 
         return getDoctorAppointments(null, start, end, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AppointmentResponse> getUpcomingAppointments() {
+
+        User currentUser = userFacade.getCurrentUserEntity();
+
+        Pageable pageable = PageRequest.of(0, 5, Sort.by("startDatetime").ascending());
+
+        var spec = AppointmentSpecification.notDeleted().and(AppointmentSpecification.hasPatientId(currentUser.getId()))
+                .and(AppointmentSpecification.isUpcoming());
+
+        return appointmentRepository.findAll(spec, pageable).stream().map(mapper::toResponse).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AppointmentStatsResponse getMyAppointmentsStats() {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        String roleName = SecurityUtils.getCurrentRoleName();
+        List<StatusCountProjection> projections;
+
+        if (RoleConstants.DOCTOR.equals(roleName)) {
+            Doctor doctor = doctorFacade.getDoctorByUserId(currentUserId);
+            projections = appointmentRepository.countDoctorGroupByStatus(doctor.getId());
+        } else {
+            projections = appointmentRepository.countPatientGroupByStatus(currentUserId);
+        }
+
+        long total = 0;
+        long completed = 0;
+        long pending = 0;
+        long cancelled = 0;
+
+        for (StatusCountProjection p : projections) {
+            long cnt = p.getCnt() != null ? p.getCnt() : 0;
+            total += cnt;
+            if (p.getStatus() == AppointmentStatus.COMPLETED) {
+                completed = cnt;
+            } else if (p.getStatus() == AppointmentStatus.PENDING) {
+                pending = cnt;
+            } else if (p.getStatus() == AppointmentStatus.CANCELLED) {
+                cancelled = cnt;
+            }
+        }
+
+        return AppointmentStatsResponse.builder()
+                .total(total)
+                .completed(completed)
+                .pending(pending)
+                .cancelled(cancelled)
+                .build();
     }
 }

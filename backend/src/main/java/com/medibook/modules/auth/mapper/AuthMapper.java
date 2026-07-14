@@ -7,6 +7,7 @@ import org.mapstruct.ReportingPolicy;
 import com.medibook.modules.auth.dto.request.RegisterRequest;
 import com.medibook.modules.auth.dto.response.LoginResponse;
 import com.medibook.modules.auth.dto.response.RegisterResponse;
+import com.medibook.modules.user.dto.response.UserResponse;
 import com.medibook.modules.user.entity.Role;
 import com.medibook.modules.user.entity.User;
 
@@ -40,4 +41,12 @@ public interface AuthMapper {
     @Mapping(target = "issuedAt", source = "issuedAt")
     LoginResponse toLoginResponse(User user, String accessToken, String refreshToken, long accessTokenExpiresAt,
             long refreshTokenExpiresAt, long issuedAt);
+
+    @Mapping(target = "fullName", source = "fullName")
+    @Mapping(target = "birthDate", source = "birthDate")
+    @Mapping(target = "profileImage", source = "profileImage")
+    @Mapping(target = "roleId", source = "role.id")
+    @Mapping(target = "roleName", source = "role.name")
+    @Mapping(target = "doctorId", ignore = true)
+    UserResponse toUserResponse(User user);
 }

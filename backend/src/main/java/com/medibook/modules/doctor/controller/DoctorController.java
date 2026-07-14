@@ -35,7 +35,7 @@ public class DoctorController {
 
         DoctorResponse response = doctorService.createDoctor(request);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(HttpStatus.CREATED.value(), "Doctor profile created successfully", response));
     }
 
     @GetMapping("/{id}")

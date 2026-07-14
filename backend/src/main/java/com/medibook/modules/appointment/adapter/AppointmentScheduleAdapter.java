@@ -7,19 +7,18 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
-import com.medibook.modules.appointment.dto.response.BookedSlotResponse;
+import com.medibook.modules.appointment.entity.Appointment;
 import com.medibook.modules.appointment.port.AppointmentSchedulePort;
 import com.medibook.modules.appointment.repository.AppointmentRepository;
-import com.medibook.modules.appointment.service.AppointmentService;
-
-import lombok.RequiredArgsConstructor;
 
 @Component
-@RequiredArgsConstructor
 public class AppointmentScheduleAdapter implements AppointmentSchedulePort {
 
     private final AppointmentRepository appointmentRepository;
-    private final AppointmentService appointmentService;
+
+    public AppointmentScheduleAdapter(AppointmentRepository appointmentRepository) {
+        this.appointmentRepository = appointmentRepository;
+    }
 
     @Override
     public boolean hasFutureAppointments(Long doctorId, LocalDateTime from) {
@@ -28,10 +27,11 @@ public class AppointmentScheduleAdapter implements AppointmentSchedulePort {
 
     @Override
     public Set<LocalDateTime> getBookedSlots(Long doctorId, LocalDate date) {
-
-        return appointmentService.getBookedAppointmentsByDate(doctorId, date)
-                .stream()
-                .map(BookedSlotResponse::getStartDatetime)
-                .collect(Collectors.toSet());
+        return appointmentRepository.findActiveAppointmentsByDate(
+                doctorId,
+                date.atStartOfDay(),
+                date.plusDays(1).atStartOfDay()).stream()
+                .map(Appointment::getStartDatetime)
+                .collect(java.util.stream.Collectors.toSet());
     }
 }

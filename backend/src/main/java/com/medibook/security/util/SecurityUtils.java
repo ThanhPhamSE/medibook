@@ -47,4 +47,21 @@ public final class SecurityUtils {
 
         throw new UnauthorizedException("Invalid authentication principal");
     }
+
+    public static String getCurrentRoleName() {
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new UnauthorizedException("User not authenticated");
+        }
+
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof CustomUserPrincipal user) {
+            return user.getRoleName();
+        }
+
+        throw new UnauthorizedException("Invalid authentication principal");
+    }
 }

@@ -22,6 +22,7 @@ import com.medibook.modules.medicalrecord.validator.MedicalRecordSecurityValidat
 import com.medibook.modules.medicalrecord.validator.MedicalRecordValidator;
 import com.medibook.modules.user.dto.internal.CurrentUserDto;
 import com.medibook.modules.user.facade.UserFacade;
+import com.medibook.modules.audit.service.AuditService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,9 +39,11 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     private final MedicalRecordSecurityValidator securityValidator;
     private final AppointmentFacade appointmentFacade;
     private final UserFacade userFacade;
+    private final AuditService auditService;
 
     @Override
     public MedicalRecordResponse create(MedicalRecordCreateRequest request) {
+        log.info("Request to create medical record: appointmentId={}", request.getAppointmentId());
 
         Appointment appointment = appointmentFacade.getAppointmentEntity(request.getAppointmentId());
 
@@ -60,11 +63,16 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         log.info("Medical record created: recordId={}, appointmentId={}, doctorUserId={}",
                 medicalRecord.getId(), appointment.getId(), currentUser.getId());
 
+        auditService.log("CREATE", "MedicalRecord", medicalRecord.getId(), null, medicalRecord);
+
+        log.info("Successfully created medical record: recordId={}, appointmentId={}", medicalRecord.getId(), appointment.getId());
+
         return medicalRecordMapper.toResponse(medicalRecord);
     }
 
     @Override
     public MedicalRecordResponse update(Long id, MedicalRecordUpdateRequest request) {
+        log.info("Request to update medical record: recordId={}", id);
 
         MedicalRecord medicalRecord = medicalRecordRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Medical record not found"));
@@ -78,6 +86,10 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         medicalRecordMapper.updateEntity(request, medicalRecord);
 
         log.info("Medical record updated: recordId={}, doctorUserId={}", id, currentUser.getId());
+
+        auditService.log("UPDATE", "MedicalRecord", medicalRecord.getId(), null, medicalRecord);
+
+        log.info("Successfully updated medical record: recordId={}", id);
 
         return medicalRecordMapper.toResponse(medicalRecord);
     }
@@ -106,7 +118,8 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     @Transactional(readOnly = true)
     public Page<MedicalRecordResponse> getMyMedicalRecords(Pageable pageable) {
 
-        Long patientId = userFacade.getCurrentUser().getId();
+        CurrentUserDto currentUser = userFacade.getCurrentUser();
+        Long patientId = currentUser.getId();
 
         return medicalRecordRepository.findByAppointmentPatientIdAndDeletedAtIsNull(patientId, pageable)
                 .map(medicalRecordMapper::toResponse);
@@ -114,6 +127,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
 
     @Override
     public void delete(Long id) {
+        log.info("Request to delete medical record: recordId={}", id);
 
         MedicalRecord medicalRecord = medicalRecordRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Medical record not found"));
@@ -127,6 +141,10 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         medicalRecord.setDeletedAt(LocalDateTime.now());
 
         log.info("Medical record soft-deleted: recordId={}, deletedByUserId={}", id, currentUser.getId());
+
+        auditService.log("DELETE", "MedicalRecord", medicalRecord.getId(), medicalRecord, null);
+
+        log.info("Successfully deleted medical record: recordId={}", id);
     }
 
     @Override

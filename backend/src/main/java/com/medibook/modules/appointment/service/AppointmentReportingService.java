@@ -6,7 +6,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.medibook.common.enums.AppointmentStatus;
+import com.medibook.modules.appointment.repository.AppointmentTrendProjection;
+import com.medibook.modules.appointment.repository.RevenueTrendProjection;
 import com.medibook.modules.appointment.repository.StatusCountProjection;
+import com.medibook.modules.reporting.dto.response.ChartPoint;
 
 public interface AppointmentReportingService {
 
@@ -24,4 +27,9 @@ public interface AppointmentReportingService {
 
     List<StatusCountProjection> countGroupByStatus(LocalDateTime from, LocalDateTime to);
 
+    List<AppointmentTrendProjection> getAppointmentTrend(LocalDateTime from, LocalDateTime to);
+
+    List<RevenueTrendProjection> getRevenueTrend(LocalDateTime from, LocalDateTime to);
+
+    List<ChartPoint> getSpecialtyDistribution();
 }

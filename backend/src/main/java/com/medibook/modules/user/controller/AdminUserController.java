@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.http.ResponseEntity;
+import com.medibook.common.response.ApiResponse;
 import com.medibook.common.response.PageResponse;
 import com.medibook.modules.user.dto.request.UserSearchRequest;
 import com.medibook.modules.user.dto.response.UserResponse;
@@ -26,22 +28,24 @@ public class AdminUserController {
     private final UserService userService;
 
     @GetMapping
-    public PageResponse<UserResponse> getAll(@Valid UserSearchRequest request, Pageable pageable) {
-        return userService.getAllUsers(request, pageable);
+    public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getAll(@Valid UserSearchRequest request, Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(userService.getAllUsers(request, pageable)));
     }
 
     @GetMapping("/{id}")
-    public UserResponse getById(@PathVariable @Positive Long id) {
-        return userService.getUserById(id);
+    public ResponseEntity<ApiResponse<UserResponse>> getById(@PathVariable @Positive Long id) {
+        return ResponseEntity.ok(ApiResponse.success(userService.getUserById(id)));
     }
 
     @PatchMapping("/{id}/activate")
-    public void activate(@PathVariable @Positive Long id) {
+    public ResponseEntity<ApiResponse<Void>> activate(@PathVariable @Positive Long id) {
         userService.activateUser(id);
+        return ResponseEntity.ok(ApiResponse.success("User activated successfully", null));
     }
 
     @PatchMapping("/{id}/deactivate")
-    public void deactivate(@PathVariable @Positive Long id) {
+    public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable @Positive Long id) {
         userService.deactivateUser(id);
+        return ResponseEntity.ok(ApiResponse.success("User deactivated successfully", null));
     }
 }

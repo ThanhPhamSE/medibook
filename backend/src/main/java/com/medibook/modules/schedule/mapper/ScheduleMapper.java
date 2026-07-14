@@ -32,5 +32,7 @@ public interface ScheduleMapper {
     DoctorTimeOff toEntity(TimeOffRequest request);
 
     @Mapping(target = "doctorId", source = "doctor.id")
+    @Mapping(target = "startDateTime", source = "startDatetime")
+    @Mapping(target = "endDateTime", source = "endDatetime")
     TimeOffResponse toResponse(DoctorTimeOff entity);
 }

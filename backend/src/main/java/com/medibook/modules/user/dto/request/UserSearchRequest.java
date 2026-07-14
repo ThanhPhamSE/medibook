@@ -19,4 +19,7 @@ public class UserSearchRequest {
 
     private Gender gender;
 
+    private String role;
+
 }
+

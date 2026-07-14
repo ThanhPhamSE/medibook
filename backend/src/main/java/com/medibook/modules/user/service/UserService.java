@@ -3,6 +3,7 @@ package com.medibook.modules.user.service;
 import org.springframework.data.domain.Pageable;
 
 import com.medibook.common.response.PageResponse;
+import com.medibook.modules.user.dto.request.UpdateProfileRequest;
 import com.medibook.modules.user.dto.request.UserSearchRequest;
 import com.medibook.modules.user.dto.response.UserResponse;
 import com.medibook.modules.user.entity.User;
@@ -17,4 +18,6 @@ public interface UserService {
     void activateUser(Long id);
 
     void deactivateUser(Long id);
+
+    UserResponse updateProfile(Long userId, UpdateProfileRequest request);
 }

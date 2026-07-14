@@ -1,0 +1,81 @@
+services:
+  mysql:
+    image: mysql:8.0
+    platform: linux/amd64
+    container_name: medibook-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: medibook
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_ROOT_PASSWORD:-rootpassword}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - medibook-net
+
+  redis:
+    image: redis:7.2
+    container_name: medibook-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - medibook-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.backend    # relative theo context (./backend)
+    container_name: medibook-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/medibook?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Ho_Chi_Minh
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - "8080:8080"
+    networks:
+      - medibook-net
+
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: ../docker/Dockerfile.frontend
+  #   container_name: medibook-frontend
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - medibook-net
+
+volumes:
+  mysql-data:
+  redis-data:
+
+networks:
+  medibook-net:
+    driver: bridge

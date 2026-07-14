@@ -25,4 +25,13 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     @EntityGraph(attributePaths = "role")
     Page<User> findAll(Specification<User> spec, Pageable pageable);
+
+    @EntityGraph(attributePaths = "role")
+    Optional<User> findWithRoleByEmail(String email);
+
+    @EntityGraph(attributePaths = "role")
+    Optional<User> findById(Long id);
+
+    long countByRoleIdAndDeletedAtIsNull(Long roleId);
 }
+

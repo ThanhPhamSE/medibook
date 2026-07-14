@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
@@ -89,5 +91,31 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleDuplicate(DataIntegrityViolationException ex) {
 
         return ResponseEntity.badRequest().body(ApiResponse.error(400, "Duplicate data"));
+    }
+
+    // JWT token hết hạn (ví dụ: reset-password link quá 15 phút)
+    @ExceptionHandler(ExpiredJwtException.class)
+    public ResponseEntity<ApiResponse<String>> handleExpiredJwt(ExpiredJwtException ex) {
+
+        log.warn("Expired JWT token: {}", ex.getMessage());
+
+        ApiResponse<String> response = ApiResponse.error(
+                HttpStatus.BAD_REQUEST.value(),
+                "The password reset link has expired. Please request a new one.");
+
+        return ResponseEntity.badRequest().body(response);
+    }
+
+    // JWT không hợp lệ (bị giả mạo, sai chữ ký, v.v.)
+    @ExceptionHandler(JwtException.class)
+    public ResponseEntity<ApiResponse<String>> handleJwtException(JwtException ex) {
+
+        log.warn("Invalid JWT token: {}", ex.getMessage());
+
+        ApiResponse<String> response = ApiResponse.error(
+                HttpStatus.BAD_REQUEST.value(),
+                "The password reset link is invalid. Please request a new one.");
+
+        return ResponseEntity.badRequest().body(response);
     }
 }

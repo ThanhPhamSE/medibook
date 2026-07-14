@@ -21,8 +21,10 @@ import com.medibook.common.response.PageResponse;
 import com.medibook.modules.appointment.dto.request.AppointmentCreateRequest;
 import com.medibook.modules.appointment.dto.request.AppointmentRescheduleRequest;
 import com.medibook.modules.appointment.dto.response.AppointmentResponse;
+import com.medibook.modules.appointment.dto.response.AppointmentStatsResponse;
 import com.medibook.modules.appointment.dto.response.BookedSlotResponse;
 import com.medibook.modules.appointment.service.AppointmentService;
+
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -37,12 +39,11 @@ public class AppointmentController {
     private final AppointmentService appointmentService;
 
     @PostMapping
-    @PreAuthorize("hasRole('PATIENT')")
     public ResponseEntity<ApiResponse<AppointmentResponse>> createAppointment(
             @Valid @RequestBody AppointmentCreateRequest request) {
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(appointmentService.createAppointment(request)));
+                .body(ApiResponse.success(HttpStatus.CREATED.value(), "Appointment created successfully", appointmentService.createAppointment(request)));
     }
 
     @GetMapping("/{id}")
@@ -53,15 +54,23 @@ public class AppointmentController {
     }
 
     @GetMapping("/me")
-    @PreAuthorize("hasRole('PATIENT')")
     public ResponseEntity<ApiResponse<Page<AppointmentResponse>>> getMyAppointments(
+            @RequestParam(required = false) AppointmentStatus status,
+            @RequestParam(required = false, defaultValue = "all") String timeFilter,
             Pageable pageable) {
 
-        return ResponseEntity.ok(ApiResponse.success(appointmentService.getMyAppointments(pageable)));
+        return ResponseEntity.ok(ApiResponse.success(appointmentService.getMyAppointments(status, timeFilter, pageable)));
     }
 
+    @GetMapping("/me/stats")
+    public ResponseEntity<ApiResponse<AppointmentStatsResponse>> getMyAppointmentsStats() {
+
+        return ResponseEntity.ok(ApiResponse.success(appointmentService.getMyAppointmentsStats()));
+    }
+
+
     @PutMapping("/{id}/cancel")
-    @PreAuthorize("hasAnyRole('PATIENT','ADMIN')")
+    @PreAuthorize("hasAnyRole('CUSTOMER','DOCTOR','ADMIN')")
     public ResponseEntity<ApiResponse<Void>> cancelAppointment(@PathVariable @Positive Long id,
             @RequestParam(required = false) String reason) {
 
@@ -129,7 +138,7 @@ public class AppointmentController {
     }
 
     @PutMapping("/{id}/reschedule")
-    @PreAuthorize("hasRole('PATIENT')")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<ApiResponse<AppointmentResponse>> rescheduleAppointment(@PathVariable @Positive Long id,
             @Valid @RequestBody AppointmentRescheduleRequest request) {
 

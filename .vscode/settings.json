@@ -1,5 +1,7 @@
 {
-    "java.configuration.updateBuildConfiguration": "interactive",
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.import.maven.annotationProcessing.enabled": true,
+    "java.compile.nullAnalysis.mode": "disabled",
     "sqltools.connections": [
         {
             "mysqlOptions": {

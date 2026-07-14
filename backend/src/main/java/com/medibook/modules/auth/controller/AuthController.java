@@ -1,5 +1,7 @@
 package com.medibook.modules.auth.controller;
 
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,11 +22,14 @@ import com.medibook.modules.auth.dto.response.LoginResponse;
 import com.medibook.modules.auth.dto.response.RegisterResponse;
 import com.medibook.modules.auth.dto.response.ResetPasswordResponse;
 import com.medibook.modules.auth.service.AuthService;
+import com.medibook.modules.user.dto.response.UserResponse;
 import com.medibook.security.util.SecurityUtils;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -46,6 +51,13 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED.value(), "Register successful", response));
 
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<ApiResponse<Void>> resendVerification(
+            @RequestBody Map<String, String> body) {
+        authService.resendVerificationEmail(body.get("email"));
+        return ResponseEntity.ok(ApiResponse.success("Email sent", null));
     }
 
     @PostMapping("/login")
@@ -94,7 +106,10 @@ public class AuthController {
 
         authService.changePassword(userId, request);
 
-        return ResponseEntity.ok(ApiResponse.success("Password changed successfully", null));
+        // Logout all devices after password change for security
+        authService.logoutAllDevices(userId);
+
+        return ResponseEntity.ok(ApiResponse.success("Password changed successfully. Please login again.", null));
     }
 
     @PostMapping("/forgot-password")
@@ -121,5 +136,19 @@ public class AuthController {
         authService.verifyEmail(token);
 
         return ResponseEntity.ok(ApiResponse.success("Account verified successfully", null));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser() {
+
+        Long userId = SecurityUtils.getCurrentUserId();
+
+        if (userId == null) {
+            throw new UnauthorizedException("User not authenticated");
+        }
+
+        UserResponse user = authService.getCurrentUser(userId);
+
+        return ResponseEntity.ok(ApiResponse.success("User retrieved successfully", user));
     }
 }

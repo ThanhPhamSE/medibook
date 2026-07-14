@@ -33,7 +33,7 @@ public class ReviewController {
     public ResponseEntity<ApiResponse<ReviewResponse>> createReview(@Valid @RequestBody ReviewCreateRequest request) {
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(reviewService.createReview(request)));
+                .body(ApiResponse.success(HttpStatus.CREATED.value(), "Review created successfully", reviewService.createReview(request)));
     }
 
     @GetMapping("/doctor/{doctorId}")

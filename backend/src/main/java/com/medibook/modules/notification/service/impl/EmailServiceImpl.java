@@ -24,7 +24,7 @@ public class EmailServiceImpl implements EmailService {
     @Async("emailExecutor")
     public void sendResetPasswordEmail(String email, String resetToken) {
 
-        String resetUrl = appProperties.getFrontendUrl() + "/reset-password?token=" + resetToken;
+        String resetUrl = appProperties.getFrontendUrl() + "/reset-password/" + resetToken;
 
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(email);
@@ -58,7 +58,7 @@ public class EmailServiceImpl implements EmailService {
     @Async("emailExecutor")
     public void sendVerificationEmail(String email, String token) {
 
-        String verifyUrl = appProperties.getFrontendUrl() + "/verify-email?token=" + token;
+        String verifyUrl = appProperties.getFrontendUrl() + "/verify-email/" + token;
 
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(email);

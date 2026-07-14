@@ -29,4 +29,6 @@ public class UserResponse {
 
     private String roleName;
 
+    private Long doctorId;
+
 }

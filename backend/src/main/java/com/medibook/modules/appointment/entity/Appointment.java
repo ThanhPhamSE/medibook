@@ -20,7 +20,6 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -28,10 +27,9 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "appointments", indexes = {
-                @Index(name = "idx_appt_patient_time", columnList = "patient_id,start_datetime"),
-                @Index(name = "idx_appt_status", columnList = "status")
-}, uniqueConstraints = {
-                @UniqueConstraint(name = "uq_doctor_time", columnNames = { "doctor_id", "start_datetime" })
+                @Index(name = "idx_appt_patient_time", columnList = "patient_id, start_datetime"),
+                @Index(name = "idx_appt_status", columnList = "status"),
+                @Index(name = "idx_appt_doctor_time_status", columnList = "doctor_id,start_datetime,status")
 })
 @Getter
 @Setter
@@ -75,4 +73,7 @@ public class Appointment extends VersionedEntity {
 
         @Column(name = "cancelled_reason")
         private String cancelledReason;
+
+        @Column(name = "active_slot_key", insertable = false, updatable = false)
+        private String activeSlotKey;
 }

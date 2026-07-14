@@ -148,6 +148,20 @@
             <version>2.8.16</version>
         </dependency>
 
+
+        <!-- ========================= -->
+        <!-- Caching / Redis -->
+        <!-- ========================= -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
         <!-- ========================= -->
         <!-- Testing -->
         <!-- ========================= -->
@@ -224,7 +238,31 @@
 
                     </annotationProcessorPaths>
 
+                    <generatedSourcesDirectory>
+                        ${project.build.directory}/generated-sources/annotations
+                    </generatedSourcesDirectory>
+
                 </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>add-mapstruct-generated-sources</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources/annotations</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
 
             <!-- JaCoCo -->

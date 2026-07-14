@@ -3,6 +3,7 @@ package com.medibook.security.config;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -52,17 +53,38 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler))
 
                 // authorization
-                .authorizeHttpRequests(auth -> auth.requestMatchers(
-                        "/api/v1/auth/**",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html",
-                        "/v3/api-docs/**",
-                        "/webjars/**").permitAll()
-                        // ADMIN ONLY
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                .authorizeHttpRequests(auth -> auth
 
-                        // USER + ADMIN
-                        .requestMatchers("/api/v1/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers(
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/register",
+                                "/api/v1/auth/forgot-password",
+                                "/api/v1/auth/reset-password",
+                                "/api/v1/auth/verify-email",
+                                "/api/v1/auth/resend-verification",
+                                "/api/v1/auth/refresh-token",
+
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**",
+                                "/webjars/**")
+                        .permitAll()
+
+                        .requestMatchers(HttpMethod.GET, "/api/v1/doctors/**", "/api/v1/specialties/**")
+                        .permitAll()
+
+                        .requestMatchers(
+                                "/api/v1/auth/change-password",
+                                "/api/v1/auth/logout",
+                                "/api/v1/auth/logout-all")
+                        .authenticated()
+
+                        .requestMatchers("/api/v1/admin/**")
+                        .hasRole("ADMIN")
+
+                        .requestMatchers("/api/v1/**")
+                        .authenticated()
+
                         .anyRequest().authenticated())
 
                 // jwt filter

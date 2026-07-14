@@ -15,6 +15,7 @@ import com.medibook.modules.specialty.entity.Specialty;
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
 public interface SpecialtyMapper {
 
+    @Mapping(target = "doctorCount", ignore = true)
     SpecialtyResponse toResponse(Specialty specialty);
 
     @Mapping(target = "id", ignore = true)
@@ -33,7 +34,7 @@ public interface SpecialtyMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
-    @Mapping(target = "version", ignore = true)
+    // @Mapping(target = "version", ignore = true)
     Specialty toSnapshot(Specialty specialty);
 
 }

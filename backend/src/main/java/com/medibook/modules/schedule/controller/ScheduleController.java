@@ -32,16 +32,16 @@ public class ScheduleController {
 
     private final ScheduleService scheduleService;
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/working-patterns")
     public ResponseEntity<ApiResponse<WorkingPatternResponse>> createWorkingPattern(
             @Valid @RequestBody WorkingPatternRequest request) {
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(scheduleService.createWorkingPattern(request)));
+                .body(ApiResponse.success(HttpStatus.CREATED.value(), "Working pattern created successfully", scheduleService.createWorkingPattern(request)));
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/working-patterns/{id}")
     public ResponseEntity<ApiResponse<WorkingPatternResponse>> updateWorkingPattern(@PathVariable @Positive Long id,
             @Valid @RequestBody WorkingPatternUpdateRequest request) {
@@ -49,7 +49,7 @@ public class ScheduleController {
         return ResponseEntity.ok(ApiResponse.success(scheduleService.updateWorkingPattern(id, request)));
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR')")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/working-patterns/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteWorkingPattern(@PathVariable @Positive Long id) {
 
@@ -58,15 +58,15 @@ public class ScheduleController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/time-offs")
     public ResponseEntity<ApiResponse<TimeOffResponse>> createTimeOff(@Valid @RequestBody TimeOffRequest request) {
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(scheduleService.createTimeOff(request)));
+                .body(ApiResponse.success(HttpStatus.CREATED.value(), "Time off created successfully", scheduleService.createTimeOff(request)));
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/time-offs/{id}")
     public ResponseEntity<ApiResponse<TimeOffResponse>> updateTimeOff(@PathVariable @Positive Long id,
             @Valid @RequestBody TimeOffUpdateRequest request) {
@@ -74,7 +74,7 @@ public class ScheduleController {
         return ResponseEntity.ok(ApiResponse.success(scheduleService.updateTimeOff(id, request)));
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR')")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/time-offs/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteTimeOff(@PathVariable @Positive Long id) {
 
@@ -83,7 +83,6 @@ public class ScheduleController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR')")
     @PostMapping("/slots")
     public ResponseEntity<ApiResponse<List<SlotResponse>>> generateSlots(
             @Valid @RequestBody SlotGenerateRequest request) {
@@ -91,7 +90,6 @@ public class ScheduleController {
         return ResponseEntity.ok(ApiResponse.success(scheduleService.generateSlots(request)));
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR')")
     @GetMapping("/doctor/{doctorId}")
     public ResponseEntity<ApiResponse<DoctorScheduleResponse>> getDoctorSchedule(
             @PathVariable @Positive Long doctorId) {

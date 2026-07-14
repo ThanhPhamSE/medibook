@@ -133,18 +133,13 @@ public class SpecialtyServiceImpl implements SpecialtyService {
 
     @Override
     public PageResponse<SpecialtyResponse> getAllByNameAndPage(String keyword, Pageable pageable) {
-
         Page<SpecialtyResponse> page;
-
         keyword = keyword == null ? null : keyword.trim();
 
         if (keyword != null && !keyword.isBlank()) {
-
             page = specialtyRepository.findByNameContainingIgnoreCaseAndDeletedAtIsNull(keyword, pageable)
                     .map(specialtyMapper::toResponse);
-
         } else {
-
             page = specialtyRepository.findByDeletedAtIsNull(pageable).map(specialtyMapper::toResponse);
         }
 
