@@ -697,8 +697,8 @@ Dự án này được cấp phép theo MIT License - xem file [LICENSE](LICENSE
 
 - **Project Name:** MediBook
 - **Version:** 0.0.1-SNAPSHOT
-- **Author:** [Your Name]
-- **Email:** [your.email@example.com]
+- **Author:** [Phạm Hoàng Thành]
+- **Email:** [phamhoangthanh1582003@gmail.com]
 
 ---
 
