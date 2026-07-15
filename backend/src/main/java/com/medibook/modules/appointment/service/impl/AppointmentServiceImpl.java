@@ -12,6 +12,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -74,6 +75,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final EmailService emailService;
     private final ScheduleCacheService scheduleCacheService;
     private final AuditService auditService;
+    private final JdbcTemplate jdbcTemplate;
 
     public AppointmentServiceImpl(AppointmentRepository appointmentRepository,
             AppointmentStatusHistoryRepository historyRepository,
@@ -85,7 +87,8 @@ public class AppointmentServiceImpl implements AppointmentService {
             AppointmentMapper mapper,
             EmailService emailService,
             @Lazy ScheduleCacheService scheduleCacheService,
-            AuditService auditService) {
+            AuditService auditService,
+            JdbcTemplate jdbcTemplate) {
         this.appointmentRepository = appointmentRepository;
         this.historyRepository = historyRepository;
         this.doctorFacade = doctorFacade;
@@ -97,9 +100,10 @@ public class AppointmentServiceImpl implements AppointmentService {
         this.emailService = emailService;
         this.scheduleCacheService = scheduleCacheService;
         this.auditService = auditService;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
-    @Transactional(isolation = Isolation.READ_COMMITTED)
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
     @Override
     public AppointmentResponse createAppointment(AppointmentCreateRequest request) {
         log.info("Request to create appointment: doctorId={}, startTime={}", request.getDoctorId(),
@@ -154,47 +158,56 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         validator.validatePatientOverlap(overlap);
 
-        // appointmentRepository.findLockedAppointment(doctor.getId(), startTime);
+        String slotKey = startTime.toString();
+        Long lockAcquired = appointmentRepository.acquireSlotLock(doctor.getId(), slotKey);
 
-        if (appointmentRepository.existsActiveAppointment(doctor.getId(), startTime)) {
-            throw new BadRequestException("Slot already booked");
+        if (lockAcquired == null || lockAcquired != 1L) {
+            throw new BadRequestException("Could not acquire slot lock, please try again");
         }
-
-        Appointment appointment = new Appointment();
-
-        appointment.setBookingCode(generateBookingCode());
-        appointment.setDoctor(doctor);
-        appointment.setPatient(patient);
-        appointment.setStartDatetime(startTime);
-        appointment.setEndDatetime(startTime.plusMinutes(pattern.getSlotDuration()));
-        appointment.setNote(request.getNote());
-        appointment.setStatus(AppointmentStatus.PENDING);
-        appointment.setConsultationFee(doctor.getConsultationFee());
-
-        Appointment savedAppointment;
-        try {
-            savedAppointment = appointmentRepository.save(appointment);
-        } catch (DataIntegrityViolationException ex) {
-            throw new BadRequestException("Slot already booked");
-        }
-
-        saveHistory(savedAppointment, null, AppointmentStatus.PENDING, patient);
 
         try {
-            scheduleCacheService.evictSlots(doctor.getId(), startTime.toLocalDate());
-        } catch (Exception e) {
-            log.warn("Failed to evict cache after creating appointment: {}", e.getMessage());
+            appointmentRepository.findLockedAppointment(doctor.getId(), startTime).ifPresent(a -> {
+                throw new BadRequestException("Slot already booked");
+            });
+
+            Appointment appointment = new Appointment();
+
+            appointment.setBookingCode(generateBookingCode());
+            appointment.setDoctor(doctor);
+            appointment.setPatient(patient);
+            appointment.setStartDatetime(startTime);
+            appointment.setEndDatetime(startTime.plusMinutes(pattern.getSlotDuration()));
+            appointment.setNote(request.getNote());
+            appointment.setStatus(AppointmentStatus.PENDING);
+            appointment.setConsultationFee(doctor.getConsultationFee());
+
+            Appointment savedAppointment;
+            try {
+                savedAppointment = appointmentRepository.save(appointment);
+            } catch (DataIntegrityViolationException ex) {
+                throw new BadRequestException("Slot already booked");
+            }
+
+            saveHistory(savedAppointment, null, AppointmentStatus.PENDING, patient);
+
+            try {
+                scheduleCacheService.evictSlots(doctor.getId(), startTime.toLocalDate());
+            } catch (Exception e) {
+                log.warn("Failed to evict cache after creating appointment: {}", e.getMessage());
+            }
+
+            auditService.log("CREATE", "Appointment", savedAppointment.getId(), null, savedAppointment);
+
+            sendEmailAfterCommit(
+                    () -> emailService.sendAppointmentCreatedEmail(AppointmentEmailData.from(savedAppointment)));
+
+            log.info("Successfully created appointment: id={}, doctorId={}, patientId={}, startTime={}",
+                    savedAppointment.getId(), doctor.getId(), patient.getId(), startTime);
+
+            return mapper.toResponse(savedAppointment);
+        } finally {
+            releaseSlotLockSafely(doctor.getId(), slotKey);
         }
-
-        auditService.log("CREATE", "Appointment", savedAppointment.getId(), null, savedAppointment);
-
-        sendEmailAfterCommit(
-                () -> emailService.sendAppointmentCreatedEmail(AppointmentEmailData.from(savedAppointment)));
-
-        log.info("Successfully created appointment: id={}, doctorId={}, patientId={}, startTime={}",
-                savedAppointment.getId(), doctor.getId(), patient.getId(), startTime);
-
-        return mapper.toResponse(savedAppointment);
     }
 
     @Override
@@ -437,6 +450,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .map(mapper::toResponse);
     }
 
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
     @Override
     public AppointmentResponse rescheduleAppointment(Long appointmentId, AppointmentRescheduleRequest request) {
         log.info("Request to reschedule appointment: id={}, newStartTime={}", appointmentId,
@@ -479,38 +493,50 @@ public class AppointmentServiceImpl implements AppointmentService {
                     "The new appointment time must be different from the current appointment time.");
         }
 
-        if (appointmentRepository.existsActiveAppointment(appointment.getDoctor().getId(), newStart)) {
+        String newSlotKey = newStart.toString();
+        Long lockAcquired = appointmentRepository.acquireSlotLock(appointment.getDoctor().getId(), newSlotKey);
 
-            throw new BadRequestException("Slot already booked");
+        if (lockAcquired == null || lockAcquired != 1L) {
+            throw new BadRequestException("Could not acquire slot lock, please try again");
         }
-
-        LocalDate oldDate = appointment.getStartDatetime().toLocalDate();
-
-        appointment.setStartDatetime(newStart);
-        appointment.setEndDatetime(newEnd);
-
-        appointmentRepository.save(appointment);
-
-        saveHistory(appointment, appointment.getStatus(), appointment.getStatus(), patient);
-
-        auditService.log("RESCHEDULE", "Appointment", appointment.getId(), oldDate,
-                appointment.getStartDatetime().toLocalDate());
 
         try {
-            scheduleCacheService.evictSlots(appointment.getDoctor().getId(), oldDate);
-            scheduleCacheService.evictSlots(appointment.getDoctor().getId(),
+            appointmentRepository.findLockedAppointment(appointment.getDoctor().getId(), newStart).ifPresent(a -> {
+                if (!a.getId().equals(appointment.getId())) {
+                    throw new BadRequestException("Slot already booked");
+                }
+            });
+
+            LocalDate oldDate = appointment.getStartDatetime().toLocalDate();
+
+            appointment.setStartDatetime(newStart);
+            appointment.setEndDatetime(newEnd);
+
+            appointmentRepository.save(appointment);
+
+            saveHistory(appointment, appointment.getStatus(), appointment.getStatus(), patient);
+
+            auditService.log("RESCHEDULE", "Appointment", appointment.getId(), oldDate,
                     appointment.getStartDatetime().toLocalDate());
-        } catch (Exception e) {
-            log.warn("Failed to evict cache after rescheduling appointment: {}", e.getMessage());
+
+            try {
+                scheduleCacheService.evictSlots(appointment.getDoctor().getId(), oldDate);
+                scheduleCacheService.evictSlots(appointment.getDoctor().getId(),
+                        appointment.getStartDatetime().toLocalDate());
+            } catch (Exception e) {
+                log.warn("Failed to evict cache after rescheduling appointment: {}", e.getMessage());
+            }
+
+            sendEmailAfterCommit(
+                    () -> emailService.sendAppointmentCreatedEmail(AppointmentEmailData.from(appointment)));
+
+            log.info("Successfully rescheduled appointment: id={}, oldDate={}, newDate={}", appointmentId, oldDate,
+                    appointment.getStartDatetime().toLocalDate());
+
+            return mapper.toResponse(appointment);
+        } finally {
+            releaseSlotLockSafely(appointment.getDoctor().getId(), newSlotKey);
         }
-
-        sendEmailAfterCommit(
-                () -> emailService.sendAppointmentCreatedEmail(AppointmentEmailData.from(appointment)));
-
-        log.info("Successfully rescheduled appointment: id={}, oldDate={}, newDate={}", appointmentId, oldDate,
-                appointment.getStartDatetime().toLocalDate());
-
-        return mapper.toResponse(appointment);
     }
 
     @Override
@@ -745,5 +771,32 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .pending(pending)
                 .cancelled(cancelled)
                 .build();
+    }
+
+    /**
+     * Release MySQL advisory lock using JdbcTemplate (bypasses Hibernate session).
+     * <p>
+     * IMPORTANT: Do NOT use AppointmentRepository.releaseSlotLock() in finally
+     * blocks.
+     * When a DataIntegrityViolationException occurs (e.g., unique constraint
+     * violation),
+     * Hibernate marks the session as invalid. Any subsequent JPA repository call
+     * triggers
+     * an auto-flush on the tainted session, causing HHH000099 AssertionFailure
+     * ("null id
+     * in Appointment entry — don't flush the Session after an exception occurs").
+     * JdbcTemplate runs on a direct JDBC connection, completely sidestepping this
+     * issue.
+     */
+    private void releaseSlotLockSafely(Long doctorId, String slotKey) {
+        try {
+            jdbcTemplate.queryForObject(
+                    "SELECT RELEASE_LOCK(CONCAT('appointment_slot_', ?, '_', ?))",
+                    Long.class,
+                    doctorId,
+                    slotKey);
+        } catch (Exception e) {
+            log.warn("Failed to release slot lock for doctorId={}, slotKey={}: {}", doctorId, slotKey, e.getMessage());
+        }
     }
 }
