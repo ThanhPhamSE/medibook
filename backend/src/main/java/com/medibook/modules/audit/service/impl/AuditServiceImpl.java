@@ -31,7 +31,7 @@ public class AuditServiceImpl implements AuditService {
     private final RequestUtils requestUtils;
 
     @Override
-    @Async
+    @Async("auditExecutor")
     public void log(String action, String entityType, Long entityId, Object oldValue, Object newValue) {
 
         AuditLog auditLog = new AuditLog();
@@ -46,8 +46,12 @@ public class AuditServiceImpl implements AuditService {
             auditLog.setUser(userRepository.findById(userId).orElse(null));
         }
 
-        auditLog.setIpAddress(requestUtils.getClientIp());
-        auditLog.setUserAgent(requestUtils.getUserAgent());
+        try {
+            auditLog.setIpAddress(requestUtils.getClientIp());
+            auditLog.setUserAgent(requestUtils.getUserAgent());
+        } catch (Exception e) {
+            // HTTP request context may not be available in async threads
+        }
 
         try {
             auditLog.setOldValue(oldValue == null ? null : objectMapper.writeValueAsString(oldValue));

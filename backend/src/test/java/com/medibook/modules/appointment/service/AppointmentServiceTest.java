@@ -149,7 +149,7 @@ class AppointmentServiceTest {
                 .thenReturn(false);
         when(appointmentRepository.existsPatientOverlap(anyLong(), anyLong(), any(LocalDateTime.class),
                 any(LocalDateTime.class))).thenReturn(false);
-        when(appointmentRepository.existsActiveAppointment(anyLong(), any(LocalDateTime.class))).thenReturn(false);
+        when(appointmentRepository.findLockedAppointment(anyLong(), any(LocalDateTime.class))).thenReturn(Optional.empty());
         when(appointmentRepository.save(any(Appointment.class))).thenReturn(appointment);
         when(mapper.toResponse(any(Appointment.class))).thenReturn(new AppointmentResponse());
         doNothing().when(scheduleCacheService).evictSlots(anyLong(), any(LocalDate.class));
@@ -239,7 +239,8 @@ class AppointmentServiceTest {
                 .thenReturn(false);
         when(appointmentRepository.existsPatientOverlap(anyLong(), anyLong(), any(LocalDateTime.class),
                 any(LocalDateTime.class))).thenReturn(false);
-        when(appointmentRepository.existsActiveAppointment(anyLong(), any(LocalDateTime.class))).thenReturn(true);
+        when(appointmentRepository.findLockedAppointment(anyLong(), any(LocalDateTime.class)))
+                .thenReturn(Optional.of(appointment));
 
         assertThatThrownBy(() -> appointmentService.createAppointment(createRequest))
                 .isInstanceOf(BadRequestException.class)
@@ -449,7 +450,7 @@ class AppointmentServiceTest {
                 .thenReturn(false);
         when(appointmentRepository.existsPatientOverlap(anyLong(), anyLong(), any(LocalDateTime.class),
                 any(LocalDateTime.class))).thenReturn(false);
-        when(appointmentRepository.existsActiveAppointment(anyLong(), any(LocalDateTime.class))).thenReturn(false);
+        when(appointmentRepository.findLockedAppointment(anyLong(), any(LocalDateTime.class))).thenReturn(Optional.empty());
         when(appointmentRepository.save(any(Appointment.class))).thenReturn(appointment);
         when(mapper.toResponse(any(Appointment.class))).thenReturn(new AppointmentResponse());
         doNothing().when(scheduleCacheService).evictSlots(anyLong(), any(LocalDate.class));
@@ -510,7 +511,8 @@ class AppointmentServiceTest {
                 .thenReturn(false);
         when(appointmentRepository.existsPatientOverlap(anyLong(), anyLong(), any(LocalDateTime.class),
                 any(LocalDateTime.class))).thenReturn(false);
-        when(appointmentRepository.existsActiveAppointment(anyLong(), any(LocalDateTime.class))).thenReturn(true);
+        when(appointmentRepository.findLockedAppointment(anyLong(), any(LocalDateTime.class)))
+                .thenReturn(Optional.of(appointment));
 
         assertThatThrownBy(() -> appointmentService.rescheduleAppointment(1L, rescheduleRequest))
                 .isInstanceOf(BadRequestException.class)

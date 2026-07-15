@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 
 @Configuration
 @EnableAsync
@@ -22,7 +23,9 @@ public class AsyncConfig {
         executor.setThreadNamePrefix("audit-");
         executor.initialize();
 
-        return executor;
+        // Propagate SecurityContext from the calling thread to async audit threads
+        // so that SecurityUtils.getCurrentUserId() works inside AuditServiceImpl
+        return new DelegatingSecurityContextAsyncTaskExecutor(executor);
     }
 
     @Bean("emailExecutor")
