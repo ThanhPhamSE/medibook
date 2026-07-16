@@ -11,6 +11,7 @@ import com.medibook.modules.user.dto.response.UserResponse;
 import com.medibook.modules.user.service.UserService;
 import com.medibook.security.util.SecurityUtils;
 
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,12 +22,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
-@Tag(name = "User")
+@Tag(name = "User", description = "User profile management APIs")
 public class UserController {
 
     private final UserService userService;
 
     @GetMapping("/me")
+    @Operation(summary = "Get current user profile", description = "Retrieve current authenticated user profile")
     public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser() {
 
         Long userId = SecurityUtils.getCurrentUserId();
@@ -41,6 +43,7 @@ public class UserController {
     }
 
     @PutMapping("/me")
+    @Operation(summary = "Update user profile", description = "Update current user profile information")
     public ResponseEntity<ApiResponse<UserResponse>> updateProfile(@Valid @RequestBody UpdateProfileRequest request) {
 
         Long userId = SecurityUtils.getCurrentUserId();

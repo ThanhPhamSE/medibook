@@ -20,6 +20,9 @@ import com.medibook.modules.schedule.dto.response.TimeOffResponse;
 import com.medibook.modules.schedule.dto.response.WorkingPatternResponse;
 import com.medibook.modules.schedule.service.ScheduleService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
@@ -28,12 +31,14 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/v1/schedules")
 @RequiredArgsConstructor
 @Validated
+@Tag(name = "Schedules", description = "Doctor schedule and time-off management APIs")
 public class ScheduleController {
 
     private final ScheduleService scheduleService;
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/working-patterns")
+    @Operation(summary = "Create working pattern", description = "Create doctor working pattern (Admin only)")
     public ResponseEntity<ApiResponse<WorkingPatternResponse>> createWorkingPattern(
             @Valid @RequestBody WorkingPatternRequest request) {
 
@@ -43,7 +48,9 @@ public class ScheduleController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/working-patterns/{id}")
-    public ResponseEntity<ApiResponse<WorkingPatternResponse>> updateWorkingPattern(@PathVariable @Positive Long id,
+    @Operation(summary = "Update working pattern", description = "Update doctor working pattern (Admin only)")
+    public ResponseEntity<ApiResponse<WorkingPatternResponse>> updateWorkingPattern(
+            @Parameter(description = "Working pattern ID") @PathVariable @Positive Long id,
             @Valid @RequestBody WorkingPatternUpdateRequest request) {
 
         return ResponseEntity.ok(ApiResponse.success(scheduleService.updateWorkingPattern(id, request)));
@@ -51,7 +58,9 @@ public class ScheduleController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/working-patterns/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteWorkingPattern(@PathVariable @Positive Long id) {
+    @Operation(summary = "Delete working pattern", description = "Delete doctor working pattern (Admin only)")
+    public ResponseEntity<ApiResponse<Void>> deleteWorkingPattern(
+            @Parameter(description = "Working pattern ID") @PathVariable @Positive Long id) {
 
         scheduleService.deleteWorkingPattern(id);
 
@@ -60,6 +69,7 @@ public class ScheduleController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/time-offs")
+    @Operation(summary = "Create time off", description = "Create doctor time off period (Admin only)")
     public ResponseEntity<ApiResponse<TimeOffResponse>> createTimeOff(@Valid @RequestBody TimeOffRequest request) {
 
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -68,7 +78,9 @@ public class ScheduleController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/time-offs/{id}")
-    public ResponseEntity<ApiResponse<TimeOffResponse>> updateTimeOff(@PathVariable @Positive Long id,
+    @Operation(summary = "Update time off", description = "Update doctor time off period (Admin only)")
+    public ResponseEntity<ApiResponse<TimeOffResponse>> updateTimeOff(
+            @Parameter(description = "Time off ID") @PathVariable @Positive Long id,
             @Valid @RequestBody TimeOffUpdateRequest request) {
 
         return ResponseEntity.ok(ApiResponse.success(scheduleService.updateTimeOff(id, request)));
@@ -76,7 +88,9 @@ public class ScheduleController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/time-offs/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteTimeOff(@PathVariable @Positive Long id) {
+    @Operation(summary = "Delete time off", description = "Delete doctor time off period (Admin only)")
+    public ResponseEntity<ApiResponse<Void>> deleteTimeOff(
+            @Parameter(description = "Time off ID") @PathVariable @Positive Long id) {
 
         scheduleService.deleteTimeOff(id);
 
@@ -84,6 +98,7 @@ public class ScheduleController {
     }
 
     @PostMapping("/slots")
+    @Operation(summary = "Generate available slots", description = "Generate available appointment slots for a date range")
     public ResponseEntity<ApiResponse<List<SlotResponse>>> generateSlots(
             @Valid @RequestBody SlotGenerateRequest request) {
 
@@ -91,8 +106,9 @@ public class ScheduleController {
     }
 
     @GetMapping("/doctor/{doctorId}")
+    @Operation(summary = "Get doctor schedule", description = "Retrieve doctor's complete schedule with working patterns and time-offs")
     public ResponseEntity<ApiResponse<DoctorScheduleResponse>> getDoctorSchedule(
-            @PathVariable @Positive Long doctorId) {
+            @Parameter(description = "Doctor ID") @PathVariable @Positive Long doctorId) {
 
         return ResponseEntity.ok(ApiResponse.success(scheduleService.getDoctorSchedule(doctorId)));
     }

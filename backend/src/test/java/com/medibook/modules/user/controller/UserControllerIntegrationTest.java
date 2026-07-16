@@ -73,8 +73,8 @@ class UserControllerIntegrationTest {
     private String login(String email, String password) throws Exception {
         String loginRequest = String.format("{\"email\":\"%s\",\"password\":\"%s\"}", email, password);
         String response = mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(loginRequest))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginRequest))
                 .andReturn().getResponse().getContentAsString();
         return objectMapper.readTree(response).get("data").get("accessToken").asText();
     }
@@ -82,7 +82,7 @@ class UserControllerIntegrationTest {
     @Test
     void getCurrentUser_Success() throws Exception {
         mockMvc.perform(get("/api/v1/users/me")
-                        .header("Authorization", "Bearer " + userToken))
+                .header("Authorization", "Bearer " + userToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("User retrieved successfully"))
                 .andExpect(jsonPath("$.data.email").value("user@example.com"));
@@ -101,9 +101,9 @@ class UserControllerIntegrationTest {
         request.setPhone("0987654321");
 
         mockMvc.perform(put("/api/v1/users/me")
-                        .header("Authorization", "Bearer " + userToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                .header("Authorization", "Bearer " + userToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Profile updated successfully"))
                 .andExpect(jsonPath("$.data.fullName").value("Jane Smith"));
@@ -115,8 +115,8 @@ class UserControllerIntegrationTest {
         request.setFullName("Jane");
 
         mockMvc.perform(put("/api/v1/users/me")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -126,9 +126,9 @@ class UserControllerIntegrationTest {
         request.setPhone("123"); // Invalid: too short
 
         mockMvc.perform(put("/api/v1/users/me")
-                        .header("Authorization", "Bearer " + userToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                .header("Authorization", "Bearer " + userToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
     }
 }

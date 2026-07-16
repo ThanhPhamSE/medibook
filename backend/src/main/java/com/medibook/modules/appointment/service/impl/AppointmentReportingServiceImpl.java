@@ -12,7 +12,6 @@ import com.medibook.common.enums.AppointmentStatus;
 import com.medibook.modules.appointment.repository.AppointmentRepository;
 import com.medibook.modules.appointment.repository.AppointmentTrendProjection;
 import com.medibook.modules.appointment.repository.RevenueTrendProjection;
-import com.medibook.modules.appointment.repository.SpecialtyDistributionProjection;
 import com.medibook.modules.appointment.repository.StatusCountProjection;
 import com.medibook.modules.appointment.service.AppointmentReportingService;
 import com.medibook.modules.reporting.dto.response.ChartPoint;
