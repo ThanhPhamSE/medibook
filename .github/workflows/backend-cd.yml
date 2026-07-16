@@ -13,26 +13,37 @@ jobs:
 
     runs-on: self-hosted
 
+    permissions:
+      contents: read
+      packages: read
+
     steps:
+      # Checkout repository
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Login GHCR
-        shell: powershell
-        run: |
-          "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ github.repository_owner }}" --password-stdin
+      # Login GHCR
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Pull newest image
+      # Pull latest backend image
+      - name: Pull Docker Images
         shell: powershell
         run: |
           docker compose pull
 
-      - name: Restart containers
+      # Restart containers
+      - name: Restart Containers
         shell: powershell
         run: |
-          docker compose up -d
+          docker compose up -d --force-recreate
 
-      - name: Remove old images
+      # Remove unused images
+      - name: Cleanup Docker Images
         shell: powershell
         run: |
           docker image prune -f
