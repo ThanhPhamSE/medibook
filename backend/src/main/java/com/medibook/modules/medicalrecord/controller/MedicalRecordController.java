@@ -35,7 +35,8 @@ public class MedicalRecordController {
     public ResponseEntity<ApiResponse<MedicalRecordResponse>> create(
             @Valid @RequestBody MedicalRecordCreateRequest request) {
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(HttpStatus.CREATED.value(), "Medical record created successfully", service.create(request)));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(HttpStatus.CREATED.value(),
+                "Medical record created successfully", service.create(request)));
     }
 
     @PreAuthorize("hasRole('DOCTOR')")

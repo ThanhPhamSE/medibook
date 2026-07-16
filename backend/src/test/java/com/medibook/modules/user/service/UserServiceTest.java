@@ -24,6 +24,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.util.List;
 import java.util.Optional;
@@ -105,14 +106,14 @@ class UserServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         Page<User> userPage = new PageImpl<>(List.of(user));
 
-        when(userRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable))).thenReturn(userPage);
+        when(userRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(userPage);
         when(userMapper.toResponse(any(User.class))).thenReturn(userResponse);
 
         PageResponse<UserResponse> result = userService.getAllUsers(request, pageable);
 
         assertThat(result).isNotNull();
         assertThat(result.getItems()).hasSize(1);
-        verify(userRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
+        verify(userRepository).findAll(any(Specification.class), eq(pageable));
     }
 
     @Test

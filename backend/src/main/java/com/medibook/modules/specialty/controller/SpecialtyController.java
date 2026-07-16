@@ -5,6 +5,9 @@ import com.medibook.common.response.PageResponse;
 import com.medibook.modules.doctor.facade.DoctorFacade;
 import com.medibook.modules.specialty.dto.response.SpecialtyResponse;
 import com.medibook.modules.specialty.service.SpecialtyService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
@@ -22,14 +25,16 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/specialties")
 @RequiredArgsConstructor
 @Validated
+@Tag(name = "Specialties", description = "Medical specialty management APIs")
 public class SpecialtyController {
 
         private final SpecialtyService specialtyService;
         private final DoctorFacade doctorFacade;
 
         @GetMapping
+        @Operation(summary = "Get all specialties", description = "Retrieve all medical specialties with pagination and search")
         public ResponseEntity<ApiResponse<PageResponse<SpecialtyResponse>>> getAll(
-                        @RequestParam(required = false) String keyword,
+                        @Parameter(description = "Search keyword for specialty name") @RequestParam(required = false) String keyword,
                         @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
                 PageResponse<SpecialtyResponse> page = specialtyService.getAllByNameAndPage(keyword, pageable);
@@ -45,8 +50,9 @@ public class SpecialtyController {
         }
 
         @GetMapping("/{id}")
+        @Operation(summary = "Get specialty by ID", description = "Retrieve medical specialty details by ID")
         public ResponseEntity<ApiResponse<SpecialtyResponse>> getById(
-                        @PathVariable Long id) {
+                        @Parameter(description = "Specialty ID") @PathVariable Long id) {
 
                 SpecialtyResponse response = specialtyService.getById(id);
 

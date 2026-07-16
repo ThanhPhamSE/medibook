@@ -25,6 +25,8 @@ import com.medibook.modules.auth.service.AuthService;
 import com.medibook.modules.user.dto.response.UserResponse;
 import com.medibook.security.util.SecurityUtils;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,12 +38,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
-@Tag(name = "Authentication")
+@Tag(name = "Authentication", description = "Authentication and authorization APIs")
 public class AuthController {
 
     private final AuthService authService;
 
     @PostMapping("/register")
+    @Operation(summary = "Register new user", description = "Create a new user account with email verification")
     public ResponseEntity<ApiResponse<RegisterResponse>> register(@Valid @RequestBody RegisterRequest request) {
 
         request.normalize();
@@ -54,6 +57,7 @@ public class AuthController {
     }
 
     @PostMapping("/resend-verification")
+    @Operation(summary = "Resend verification email", description = "Resend email verification to user")
     public ResponseEntity<ApiResponse<Void>> resendVerification(
             @RequestBody Map<String, String> body) {
         authService.resendVerificationEmail(body.get("email"));
@@ -61,6 +65,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    @Operation(summary = "User login", description = "Authenticate user and return JWT tokens")
     public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
 
         LoginResponse response = authService.login(request);
@@ -70,6 +75,7 @@ public class AuthController {
     }
 
     @PostMapping("/refresh-token")
+    @Operation(summary = "Refresh access token", description = "Refresh JWT access token using refresh token")
     public ResponseEntity<ApiResponse<LoginResponse>> refreshToken(@RequestBody RefreshTokenRequest request) {
 
         LoginResponse response = authService.refreshToken(request.getRefreshToken());
@@ -78,6 +84,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
+    @Operation(summary = "Logout", description = "Logout user from current device")
     public ResponseEntity<ApiResponse<Void>> logout(@Valid @RequestBody LogoutRequest request) {
 
         authService.logout(request.getRefreshToken());
@@ -86,6 +93,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout-all")
+    @Operation(summary = "Logout all devices", description = "Logout user from all devices")
     public ResponseEntity<ApiResponse<Void>> logoutAll() {
 
         Long userId = SecurityUtils.getCurrentUserId();
@@ -100,6 +108,7 @@ public class AuthController {
     }
 
     @PostMapping("/change-password")
+    @Operation(summary = "Change password", description = "Change user password (requires authentication)")
     public ResponseEntity<ApiResponse<Void>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
 
         Long userId = SecurityUtils.getCurrentUserId();
@@ -113,6 +122,7 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
+    @Operation(summary = "Forgot password", description = "Request password reset email")
     public ResponseEntity<ApiResponse<ForgotPasswordResponse>> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequest request) {
 
@@ -122,6 +132,7 @@ public class AuthController {
     }
 
     @PostMapping("/reset-password")
+    @Operation(summary = "Reset password", description = "Reset password using token from email")
     public ResponseEntity<ApiResponse<ResetPasswordResponse>> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request) {
 
@@ -131,7 +142,9 @@ public class AuthController {
     }
 
     @PostMapping("/verify-email")
-    public ResponseEntity<ApiResponse<Void>> verifyEmail(@RequestParam String token) {
+    @Operation(summary = "Verify email", description = "Verify user email using token")
+    public ResponseEntity<ApiResponse<Void>> verifyEmail(
+            @Parameter(description = "Email verification token") @RequestParam String token) {
 
         authService.verifyEmail(token);
 
@@ -139,6 +152,7 @@ public class AuthController {
     }
 
     @GetMapping("/me")
+    @Operation(summary = "Get current user", description = "Retrieve current authenticated user information")
     public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser() {
 
         Long userId = SecurityUtils.getCurrentUserId();

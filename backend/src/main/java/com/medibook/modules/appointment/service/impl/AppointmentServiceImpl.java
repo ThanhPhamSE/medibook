@@ -50,16 +50,17 @@ import com.medibook.modules.notification.dto.AppointmentEmailData;
 import com.medibook.modules.notification.service.EmailService;
 import com.medibook.modules.schedule.entity.DoctorWorkingPattern;
 import com.medibook.modules.schedule.facade.ScheduleFacade;
-import com.medibook.modules.schedule.cache.ScheduleCacheService;
 import com.medibook.modules.user.entity.User;
 import com.medibook.modules.user.facade.UserFacade;
 import com.medibook.modules.audit.service.AuditService;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Transactional
 @Slf4j
+@RequiredArgsConstructor
 public class AppointmentServiceImpl implements AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
@@ -73,35 +74,8 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private final AppointmentMapper mapper;
     private final EmailService emailService;
-    private final ScheduleCacheService scheduleCacheService;
     private final AuditService auditService;
     private final JdbcTemplate jdbcTemplate;
-
-    public AppointmentServiceImpl(AppointmentRepository appointmentRepository,
-            AppointmentStatusHistoryRepository historyRepository,
-            DoctorFacade doctorFacade,
-            UserFacade userFacade,
-            ScheduleFacade scheduleFacade,
-            AppointmentValidator validator,
-            AppointmentStatusPolicy statusPolicy,
-            AppointmentMapper mapper,
-            EmailService emailService,
-            @Lazy ScheduleCacheService scheduleCacheService,
-            AuditService auditService,
-            JdbcTemplate jdbcTemplate) {
-        this.appointmentRepository = appointmentRepository;
-        this.historyRepository = historyRepository;
-        this.doctorFacade = doctorFacade;
-        this.userFacade = userFacade;
-        this.scheduleFacade = scheduleFacade;
-        this.validator = validator;
-        this.statusPolicy = statusPolicy;
-        this.mapper = mapper;
-        this.emailService = emailService;
-        this.scheduleCacheService = scheduleCacheService;
-        this.auditService = auditService;
-        this.jdbcTemplate = jdbcTemplate;
-    }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ)
     @Override
@@ -191,7 +165,7 @@ public class AppointmentServiceImpl implements AppointmentService {
             saveHistory(savedAppointment, null, AppointmentStatus.PENDING, patient);
 
             try {
-                scheduleCacheService.evictSlots(doctor.getId(), startTime.toLocalDate());
+                scheduleFacade.evictSlots(doctor.getId(), startTime.toLocalDate());
             } catch (Exception e) {
                 log.warn("Failed to evict cache after creating appointment: {}", e.getMessage());
             }
@@ -297,7 +271,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         saveHistory(appointment, oldStatus, AppointmentStatus.CANCELLED, user);
 
         try {
-            scheduleCacheService.evictSlots(appointment.getDoctor().getId(),
+            scheduleFacade.evictSlots(appointment.getDoctor().getId(),
                     appointment.getStartDatetime().toLocalDate());
         } catch (Exception e) {
             log.warn("Failed to evict cache after cancelling appointment: {}", e.getMessage());
@@ -520,8 +494,8 @@ public class AppointmentServiceImpl implements AppointmentService {
                     appointment.getStartDatetime().toLocalDate());
 
             try {
-                scheduleCacheService.evictSlots(appointment.getDoctor().getId(), oldDate);
-                scheduleCacheService.evictSlots(appointment.getDoctor().getId(),
+                scheduleFacade.evictSlots(appointment.getDoctor().getId(), oldDate);
+                scheduleFacade.evictSlots(appointment.getDoctor().getId(),
                         appointment.getStartDatetime().toLocalDate());
             } catch (Exception e) {
                 log.warn("Failed to evict cache after rescheduling appointment: {}", e.getMessage());

@@ -18,6 +18,9 @@ import com.medibook.modules.doctor.dto.response.DoctorResponse;
 import com.medibook.modules.doctor.dto.response.DoctorSummaryResponse;
 import com.medibook.modules.doctor.service.DoctorService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -25,27 +28,32 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/v1/doctors")
 @RequiredArgsConstructor
 @Validated
+@Tag(name = "Doctors", description = "Doctor management APIs")
 public class DoctorController {
 
     private final DoctorService doctorService;
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Create doctor profile", description = "Create a new doctor profile (Admin only)")
     public ResponseEntity<ApiResponse<DoctorResponse>> createDoctor(@Valid @RequestBody CreateDoctorRequest request) {
 
         DoctorResponse response = doctorService.createDoctor(request);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(HttpStatus.CREATED.value(), "Doctor profile created successfully", response));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(HttpStatus.CREATED.value(), "Doctor profile created successfully", response));
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Get doctor by ID", description = "Retrieve doctor profile by ID")
     public ResponseEntity<ApiResponse<DoctorResponse>> getDoctorById(
-            @PathVariable Long id) {
+            @Parameter(description = "Doctor ID") @PathVariable Long id) {
 
         return ResponseEntity.ok(ApiResponse.success(doctorService.getDoctorById(id)));
     }
 
     @GetMapping
+    @Operation(summary = "Search doctors", description = "Search doctors with filters and pagination")
     public ResponseEntity<ApiResponse<PageResponse<DoctorSummaryResponse>>> searchDoctors(
             @ModelAttribute DoctorSearchRequest request, @PageableDefault(size = 10) Pageable pageable) {
 
@@ -54,7 +62,9 @@ public class DoctorController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR')")
-    public ResponseEntity<ApiResponse<DoctorResponse>> updateDoctor(@PathVariable Long id,
+    @Operation(summary = "Update doctor profile", description = "Update doctor profile information (Admin/Doctor only)")
+    public ResponseEntity<ApiResponse<DoctorResponse>> updateDoctor(
+            @Parameter(description = "Doctor ID") @PathVariable Long id,
             @Valid @RequestBody UpdateDoctorRequest request) {
 
         return ResponseEntity.ok(ApiResponse.success(doctorService.updateDoctor(id, request)));
@@ -62,7 +72,9 @@ public class DoctorController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> deleteDoctor(@PathVariable Long id) {
+    @Operation(summary = "Delete doctor", description = "Soft delete doctor profile (Admin only)")
+    public ResponseEntity<ApiResponse<Void>> deleteDoctor(
+            @Parameter(description = "Doctor ID") @PathVariable Long id) {
 
         doctorService.deleteDoctor(id);
 
@@ -71,6 +83,7 @@ public class DoctorController {
 
     @PostMapping("/upgrade-to-doctor")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Upgrade user to doctor", description = "Upgrade existing user to doctor role (Admin only)")
     public ResponseEntity<ApiResponse<DoctorResponse>> upgradeToDoctor(
             @Valid @RequestBody UpgradeToDoctorRequest request) {
 
