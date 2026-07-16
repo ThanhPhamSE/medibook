@@ -37,16 +37,16 @@ services:
       - medibook-net
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile.backend    # relative theo context (./backend)
+    image: ghcr.io/thanhphamse/medibook-backend:latest
     container_name: medibook-backend
     restart: unless-stopped
+
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
+
     environment:
       DB_URL: jdbc:mysql://mysql:3306/medibook?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Ho_Chi_Minh
       DB_USERNAME: root
@@ -57,20 +57,12 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+
     ports:
       - "8080:8080"
+
     networks:
       - medibook-net
-
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: ../docker/Dockerfile.frontend
-  #   container_name: medibook-frontend
-  #   ports:
-  #     - "3000:3000"
-  #   networks:
-  #     - medibook-net
 
 volumes:
   mysql-data:
