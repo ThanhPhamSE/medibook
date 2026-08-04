@@ -10,6 +10,7 @@ import { dashboardService, notificationService, adminService } from '@/services/
 import { medicalRecordService } from '@/services/medical-record.service';
 import { scheduleService } from '@/services/schedule.service';
 import { userService } from '@/services/user.service';
+import { paymentService } from '@/services/payment.service';
 import { toast } from 'sonner';
 import { extractApiError } from '@/services/api';
 import type {
@@ -505,3 +506,17 @@ export function useAdminBookings(params: Record<string, unknown> = {}) {
   });
 }
 
+export function usePaymentStatus(appointmentId: number | string | undefined) {
+  return useQuery<{ status: string; checkoutUrl?: string; amount?: number; orderCode?: number } | null>({
+    queryKey: ['payment-status', appointmentId],
+    queryFn: () => paymentService.getStatus(appointmentId!),
+    enabled: !!appointmentId,
+    staleTime: 10_000,
+    refetchInterval: (query) => {
+      // Dừng polling khi đã PAID hoặc CANCELLED
+      const status = query.state.data?.status;
+      if (status === 'PAID' || status === 'CANCELLED' || status === 'NOT_FOUND') return false;
+      return 15_000; // poll mỗi 15s khi đang PENDING
+    },
+  });
+}

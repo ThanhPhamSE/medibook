@@ -32,6 +32,8 @@ public interface AppointmentService {
 
         void confirmAppointment(Long id);
 
+        void confirmAppointmentPaid(Long id);
+
         void completeAppointment(Long id);
 
         void markNoShow(Long id);

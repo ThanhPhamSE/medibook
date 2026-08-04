@@ -50,7 +50,7 @@ public class AppointmentStatusHistory {
     private AppointmentStatus newStatus;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "changed_by", nullable = false)
+    @JoinColumn(name = "changed_by", nullable = true)
     private User changedBy;
 
     @Column(name = "changed_at", nullable = false)

@@ -63,6 +63,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/verify-email",
                                 "/api/v1/auth/resend-verification",
                                 "/api/v1/auth/refresh-token",
+                                "/api/v1/payments/payos-webhook",
 
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
