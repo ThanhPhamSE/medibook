@@ -122,6 +122,10 @@ public class AuthServiceImpl implements AuthService {
             authenticationManager
                     .authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
 
+        } catch (org.springframework.security.authentication.DisabledException ex) {
+
+            throw new UnauthorizedException("Tài khoản chưa được kích hoạt. Vui lòng xác thực email của bạn trước khi đăng nhập.");
+
         } catch (AuthenticationException ex) {
 
             throw new UnauthorizedException("Invalid email or password");

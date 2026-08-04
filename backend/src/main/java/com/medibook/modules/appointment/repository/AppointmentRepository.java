@@ -225,7 +225,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long>,
                         """, nativeQuery = true)
         List<SpecialtyDistributionProjection> getSpecialtyDistribution();
 
-        @Lock(LockModeType.PESSIMISTIC_WRITE)
         @Query("""
                         SELECT a
                         FROM Appointment a
@@ -239,12 +238,4 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long>,
                         """)
         Optional<Appointment> findLockedAppointment(@Param("doctorId") Long doctorId,
                         @Param("startDatetime") LocalDateTime startDatetime);
-
-        @Query(value = """
-                        SELECT GET_LOCK(CONCAT('appointment_slot_', :doctorId, '_', :startDatetime), 10)
-                        """, nativeQuery = true)
-        Long acquireSlotLock(@Param("doctorId") Long doctorId, @Param("startDatetime") String startDatetime);
-
-        @Query(value = "SELECT RELEASE_LOCK(CONCAT('appointment_slot_', :doctorId, '_', :startDatetime))", nativeQuery = true)
-        Long releaseSlotLock(@Param("doctorId") Long doctorId, @Param("startDatetime") String startDatetime);
 }

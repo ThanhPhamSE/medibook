@@ -40,6 +40,7 @@ import com.medibook.modules.appointment.repository.StatusCountProjection;
 import com.medibook.modules.appointment.repository.AppointmentStatusHistoryRepository;
 
 import com.medibook.modules.appointment.service.AppointmentService;
+import com.medibook.modules.appointment.service.RedisLockService;
 import com.medibook.modules.appointment.specification.AppointmentSpecification;
 import com.medibook.security.util.SecurityUtils;
 import com.medibook.modules.appointment.policy.AppointmentStatusPolicy;
@@ -76,6 +77,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final EmailService emailService;
     private final AuditService auditService;
     private final JdbcTemplate jdbcTemplate;
+    private final RedisLockService redisLockService;
 
     @Transactional(isolation = Isolation.REPEATABLE_READ)
     @Override
@@ -107,7 +109,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 || doctor.getConsultationFee().compareTo(java.math.BigDecimal.ZERO) < 0) {
             throw new BadRequestException("Invalid consultation fee");
         }
-
+                                                                                                                                                                         
         User patient = userFacade.getCurrentUserEntity();
 
         if (doctor.getUser() != null && doctor.getUser().getId().equals(patient.getId())) {
@@ -117,7 +119,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         if (patient == null || !patient.getIsActive()) {
             throw new BadRequestException("Account is inactive");
         }
-
+                                                                                            
         LocalDateTime startTime = request.getStartDateTime();
 
         DoctorWorkingPattern pattern = scheduleFacade.getWorkingPattern(doctor.getId(), startTime);
@@ -129,13 +131,14 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
 
         boolean overlap = appointmentRepository.existsPatientOverlap(patient.getId(), null, startTime, endTime);
-
+                                                                                                                                                              
         validator.validatePatientOverlap(overlap);
 
         String slotKey = startTime.toString();
-        Long lockAcquired = appointmentRepository.acquireSlotLock(doctor.getId(), slotKey);
+        String lockKey = "appointment_slot_" + doctor.getId() + "_" + slotKey;
+        boolean lockAcquired = redisLockService.acquireLock(lockKey, 10);
 
-        if (lockAcquired == null || lockAcquired != 1L) {
+        if (!lockAcquired) {
             throw new BadRequestException("Could not acquire slot lock, please try again");
         }
 
@@ -158,7 +161,10 @@ public class AppointmentServiceImpl implements AppointmentService {
             Appointment savedAppointment;
             try {
                 savedAppointment = appointmentRepository.save(appointment);
-            } catch (DataIntegrityViolationException ex) {
+                // Flush to DB so unique constraint violations trigger
+                // DataIntegrityViolationException immediately within the try-catch block
+                appointmentRepository.flush();
+            } catch (DataIntegrityViolationException e) {
                 throw new BadRequestException("Slot already booked");
             }
 
@@ -180,7 +186,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
             return mapper.toResponse(savedAppointment);
         } finally {
-            releaseSlotLockSafely(doctor.getId(), slotKey);
+            redisLockService.releaseLock(lockKey);
         }
     }
 
@@ -340,6 +346,40 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     @Override
+    public void confirmAppointmentPaid(Long id) {
+        log.info("System request to confirm paid appointment: id={}", id);
+
+        Appointment appointment = appointmentRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
+
+        if (appointment.getDoctor().getDeletedAt() != null) {
+            throw new BadRequestException("Cannot confirm appointment for deleted doctor");
+        }
+
+        if (appointment.getDoctor().getUser() == null || !appointment.getDoctor().getUser().getIsActive()) {
+            throw new BadRequestException("Cannot confirm appointment for inactive doctor");
+        }
+
+        statusPolicy.validateConfirmTransition(appointment.getStatus());
+
+        AppointmentStatus oldStatus = appointment.getStatus();
+
+        appointment.setStatus(AppointmentStatus.CONFIRMED);
+
+        appointmentRepository.save(appointment);
+
+        // Không gọi saveHistory ở đây vì đây là system action (PayOS webhook/verify)
+        // không có user đang đăng nhập — changed_by sẽ null gây lỗi DB constraint.
+        // Audit trail vẫn được lưu qua auditService.log bên dưới.
+        auditService.log("CONFIRM_PAID", "Appointment", appointment.getId(), oldStatus, AppointmentStatus.CONFIRMED);
+
+        sendEmailAfterCommit(
+                () -> emailService.sendAppointmentCreatedEmail(AppointmentEmailData.from(appointment)));
+
+        log.info("Successfully confirmed paid appointment: id={}", id);
+    }
+
+    @Override
     public void completeAppointment(Long id) {
         log.info("Request to complete appointment: id={}", id);
 
@@ -468,9 +508,10 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
 
         String newSlotKey = newStart.toString();
-        Long lockAcquired = appointmentRepository.acquireSlotLock(appointment.getDoctor().getId(), newSlotKey);
+        String lockKey = "appointment_slot_" + appointment.getDoctor().getId() + "_" + newSlotKey;
+        boolean lockAcquired = redisLockService.acquireLock(lockKey, 10);
 
-        if (lockAcquired == null || lockAcquired != 1L) {
+        if (!lockAcquired) {
             throw new BadRequestException("Could not acquire slot lock, please try again");
         }
 
@@ -509,7 +550,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
             return mapper.toResponse(appointment);
         } finally {
-            releaseSlotLockSafely(appointment.getDoctor().getId(), newSlotKey);
+            redisLockService.releaseLock(lockKey);
         }
     }
 
@@ -747,30 +788,4 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .build();
     }
 
-    /**
-     * Release MySQL advisory lock using JdbcTemplate (bypasses Hibernate session).
-     * <p>
-     * IMPORTANT: Do NOT use AppointmentRepository.releaseSlotLock() in finally
-     * blocks.
-     * When a DataIntegrityViolationException occurs (e.g., unique constraint
-     * violation),
-     * Hibernate marks the session as invalid. Any subsequent JPA repository call
-     * triggers
-     * an auto-flush on the tainted session, causing HHH000099 AssertionFailure
-     * ("null id
-     * in Appointment entry — don't flush the Session after an exception occurs").
-     * JdbcTemplate runs on a direct JDBC connection, completely sidestepping this
-     * issue.
-     */
-    private void releaseSlotLockSafely(Long doctorId, String slotKey) {
-        try {
-            jdbcTemplate.queryForObject(
-                    "SELECT RELEASE_LOCK(CONCAT('appointment_slot_', ?, '_', ?))",
-                    Long.class,
-                    doctorId,
-                    slotKey);
-        } catch (Exception e) {
-            log.warn("Failed to release slot lock for doctorId={}, slotKey={}: {}", doctorId, slotKey, e.getMessage());
-        }
-    }
 }

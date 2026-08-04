@@ -14,6 +14,7 @@ import {
   useDoctorReviews,
   useCreateReview,
   useCreateMedicalRecord,
+  usePaymentStatus,
 } from '@/hooks/use-api';
 import { useAuth } from '@/contexts/auth-context';
 import { PageContainer, PageHeader } from '@/components/page-header';
@@ -35,11 +36,13 @@ import {
 } from '@/components/ui/dialog';
 import {
   Calendar, Clock, FileText, CheckCircle2, XCircle, CalendarClock, ArrowLeft, PartyPopper,
-  Stethoscope, Wallet, Star, ClipboardList,
+  Stethoscope, Wallet, Star, ClipboardList, Loader2, AlertTriangle,
 } from 'lucide-react';
 import { formatDate, formatTime } from '@/utils/format';
 import { EmptyState } from '@/components/empty-state';
 import { cn } from '@/lib/utils';
+import { paymentService } from '@/services/payment.service';
+import { toast } from 'sonner';
 
 const TIMELINE_STEPS = [
   { key: 'CREATED', label: 'Đã tạo' },
@@ -69,6 +72,10 @@ export default function AppointmentDetailPage() {
   const createReviewMutation = useCreateReview();
   const createMedicalRecordMutation = useCreateMedicalRecord();
 
+  // Trạng thái thanh toán
+  const { data: paymentStatus } = usePaymentStatus(appt?.id);
+  const isPaid = paymentStatus?.status === 'PAID';
+
   // Lấy chuyên khoa từ hồ sơ bác sĩ (appointment response không có field riêng)
   const { data: doctor } = useDoctor(appt?.doctorId ? String(appt.doctorId) : '');
   const specialtyName = doctor?.specialtyName ?? null;
@@ -94,6 +101,24 @@ export default function AppointmentDetailPage() {
   const [symptoms, setSymptoms] = React.useState('');
   const [prescription, setPrescription] = React.useState('');
   const [recordNotes, setRecordNotes] = React.useState('');
+  const [paying, setPaying] = React.useState(false);
+
+  const handlePayment = async () => {
+    if (!appt?.id) return;
+    try {
+      setPaying(true);
+      const res = await paymentService.createLink(appt.id);
+      if (res?.checkoutUrl) {
+        window.location.href = res.checkoutUrl;
+      } else {
+        toast.error('Không thể tạo liên kết thanh toán');
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Có lỗi xảy ra khi tạo liên kết thanh toán');
+    } finally {
+      setPaying(false);
+    }
+  };
 
   const resetMedicalRecordForm = () => {
     setDiagnosis('');
@@ -264,6 +289,49 @@ export default function AppointmentDetailPage() {
               </div>
 
               <div className="space-y-2 border-t pt-4">
+              {user?.roleName === 'CUSTOMER' && appt.status === 'PENDING' && (
+                  isPaid ? (
+                    <div className="flex items-center justify-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 py-3 px-4 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Cuộc hẹn đã được thanh toán
+                    </div>
+                  ) : paymentStatus?.status === 'CANCELLED' ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 py-2 px-3 text-xs text-amber-700 dark:text-amber-400">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        Thanh toán trước bị hủy hoặc hết hạn. Bạn có thể thử lại.
+                      </div>
+                      <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handlePayment} disabled={paying}>
+                        {paying ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Đang tạo liên kết...
+                          </>
+                        ) : (
+                          <>
+                            <Wallet className="mr-2 h-4 w-4" />
+                            Thử thanh toán lại
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handlePayment} disabled={paying}>
+                      {paying ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Đang tạo liên kết...
+                        </>
+                      ) : (
+                        <>
+                          <Wallet className="mr-2 h-4 w-4" />
+                          Thanh toán qua PayOS (VietQR)
+                        </>
+                      )}
+                    </Button>
+                  )
+                )}
+
                 {canCancel && (
                   <>
                     <Dialog open={rescheduleOpen} onOpenChange={setRescheduleOpen}>
